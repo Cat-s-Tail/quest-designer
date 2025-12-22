@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -15,10 +16,39 @@ const __dirname = path.dirname(__filename)
 const app = express()
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 3001
 
+// CORS configuration - allow frontend domain
+const corsOptions = {
+  origin: process.env.FRONTEND_URL 
+    ? [process.env.FRONTEND_URL, 'http://localhost:3000'] 
+    : '*',
+  credentials: true,
+  optionsSuccessStatus: 200
+}
+
+// Rate limiting configuration
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+})
+
+// Stricter rate limit for upload endpoints
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Too many uploads from this IP, please try again later.',
+})
+
 // Middleware
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
+
+// Apply rate limiting
+app.use('/api/', limiter)
+app.use('/api/upload', uploadLimiter)
 
 // Routes
 app.use('/api/upload', uploadRoutes)
