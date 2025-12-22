@@ -1,18 +1,26 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { useDataStore } from '@/store/dataStore'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function UploadPanel({ onClose }: { onClose: () => void }) {
+  const { currentProject } = useDataStore()
   const [uploading, setUploading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null)
   const [stats, setStats] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState('npcs')
 
+  useEffect(() => {
+    loadStats()
+  }, [currentProject])
+
   const loadStats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/upload/stats`)
+      const response = await axios.get(`${API_URL}/api/upload/stats`, {
+        params: { project: currentProject }
+      })
       setStats(response.data)
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -35,7 +43,9 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const data = JSON.parse(text)
 
       const endpoint = type === 'npcs' ? '/api/upload/npcs' : '/api/upload/missions'
-      const response = await axios.post(`${API_URL}${endpoint}`, data)
+      const response = await axios.post(`${API_URL}${endpoint}`, data, {
+        params: { project: currentProject }
+      })
 
       setMessage({
         type: 'success',
@@ -64,7 +74,9 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
 
     try {
       const endpoint = type === 'npcs' ? '/api/upload/export/npcs' : '/api/upload/export/missions'
-      const response = await axios.get(`${API_URL}${endpoint}`)
+      const response = await axios.get(`${API_URL}${endpoint}`, {
+        params: { project: currentProject }
+      })
 
       // Create a blob and download the file
       const jsonString = JSON.stringify(response.data, null, 2)

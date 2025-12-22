@@ -1,77 +1,79 @@
 import express from 'express'
-import { getDatabase, COLLECTIONS } from '../config/database.js'
+import Quest from '../models/Quest.js'
 
 const router = express.Router()
 
-// Get all missions (quests)
+// Get all quests for a project
 router.get('/', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const missions = await db.collection(COLLECTIONS.MISSIONS).find({}).toArray()
+    const project = req.query.project || 'default'
+    const quests = await Quest.find({ project }).lean()
     
-    // Return in the same format as before
-    res.json({ quests: missions })
+    res.json({ quests })
   } catch (error) {
-    console.error('Error fetching missions:', error)
-    res.status(500).json({ error: 'Failed to read missions' })
+    console.error('Error fetching quests:', error)
+    res.status(500).json({ error: 'Failed to read quests' })
   }
 })
 
-// Get single mission
+// Get single quest
 router.get('/:id', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const mission = await db.collection(COLLECTIONS.MISSIONS).findOne({ id: req.params.id })
+    const project = req.query.project || 'default'
+    const quest = await Quest.findOne({ project, id: req.params.id }).lean()
     
-    if (!mission) {
-      return res.status(404).json({ error: 'Mission not found' })
+    if (!quest) {
+      return res.status(404).json({ error: 'Quest not found' })
     }
     
-    res.json(mission)
+    res.json(quest)
   } catch (error) {
-    console.error('Error fetching mission:', error)
-    res.status(500).json({ error: 'Failed to read mission' })
+    console.error('Error fetching quest:', error)
+    res.status(500).json({ error: 'Failed to read quest' })
   }
 })
 
-// Create/Update mission
+// Create/Update quest
 router.post('/', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const mission = req.body
+    const quest = req.body
+    const project = req.query.project || req.body.project || 'default'
     
-    if (!mission.id) {
-      return res.status(400).json({ error: 'Mission ID is required' })
+    if (!quest.id) {
+      return res.status(400).json({ error: 'Quest ID is required' })
     }
     
-    // Upsert: update if exists, insert if not
-    await db.collection(COLLECTIONS.MISSIONS).updateOne(
-      { id: mission.id },
-      { $set: mission },
-      { upsert: true }
-    )
+    // Add project to the quest data
+    quest.project = project
     
-    res.json(mission)
+    // Upsert: update if exists, insert if not (based on compound unique key)
+    const result = await Quest.findOneAndUpdate(
+      { project, id: quest.id },
+      quest,
+      { upsert: true, new: true }
+    ).lean()
+    
+    res.json(result)
   } catch (error) {
-    console.error('Error saving mission:', error)
-    res.status(500).json({ error: 'Failed to save mission' })
+    console.error('Error saving quest:', error)
+    res.status(500).json({ error: 'Failed to save quest' })
   }
 })
 
-// Delete mission
+// Delete quest
 router.delete('/:id', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const result = await db.collection(COLLECTIONS.MISSIONS).deleteOne({ id: req.params.id })
+    const project = req.query.project || 'default'
+    const result = await Quest.deleteOne({ project, id: req.params.id })
     
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Mission not found' })
+      return res.status(404).json({ error: 'Quest not found' })
     }
     
     res.json({ success: true })
   } catch (error) {
-    console.error('Error deleting mission:', error)
-    res.status(500).json({ error: 'Failed to delete mission' })
+    console.error('Error deleting quest:', error)
+    res.status(500).json({ error: 'Failed to delete quest' })
   }
 })
 

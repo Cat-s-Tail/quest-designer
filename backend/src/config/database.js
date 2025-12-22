@@ -1,22 +1,21 @@
-import { MongoClient } from 'mongodb'
+import mongoose from 'mongoose'
 
-let db = null
-let client = null
+let isConnected = false
 
 export async function connectToDatabase() {
-  if (db) {
-    return db
+  if (isConnected) {
+    return mongoose.connection
   }
 
   try {
     const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/quest-designer'
-    client = new MongoClient(uri)
     
-    await client.connect()
-    console.log('✅ Connected to MongoDB')
+    await mongoose.connect(uri)
+    isConnected = true
     
-    db = client.db()
-    return db
+    console.log('✅ Connected to MongoDB with Mongoose')
+    
+    return mongoose.connection
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)
     throw error
@@ -24,17 +23,16 @@ export async function connectToDatabase() {
 }
 
 export async function getDatabase() {
-  if (!db) {
-    return await connectToDatabase()
+  if (!isConnected) {
+    await connectToDatabase()
   }
-  return db
+  return mongoose.connection.db
 }
 
 export async function closeDatabase() {
-  if (client) {
-    await client.close()
-    db = null
-    client = null
+  if (isConnected) {
+    await mongoose.connection.close()
+    isConnected = false
     console.log('MongoDB connection closed')
   }
 }
@@ -44,4 +42,3 @@ export const COLLECTIONS = {
   NPCS: 'npcs',
   MISSIONS: 'missions'
 }
-

@@ -1,16 +1,15 @@
 import express from 'express'
-import { getDatabase, COLLECTIONS } from '../config/database.js'
+import NPC from '../models/NPC.js'
 
 const router = express.Router()
 
-// Get all NPCs
+// Get all NPCs for a project
 router.get('/', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const npcs = await db.collection(COLLECTIONS.NPCS).find({}).toArray()
+    const project = req.query.project || 'default'
+    const npcs = await NPC.find({ project }).lean()
     
-    // Return in the same format as before
-    res.json({ npcs: npcs })
+    res.json({ npcs })
   } catch (error) {
     console.error('Error fetching NPCs:', error)
     res.status(500).json({ error: 'Failed to read NPCs' })
@@ -20,8 +19,8 @@ router.get('/', async (req, res) => {
 // Get single NPC
 router.get('/:id', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const npc = await db.collection(COLLECTIONS.NPCS).findOne({ id: req.params.id })
+    const project = req.query.project || 'default'
+    const npc = await NPC.findOne({ project, id: req.params.id }).lean()
     
     if (!npc) {
       return res.status(404).json({ error: 'NPC not found' })
@@ -37,21 +36,24 @@ router.get('/:id', async (req, res) => {
 // Create/Update NPC
 router.post('/', async (req, res) => {
   try {
-    const db = await getDatabase()
     const npc = req.body
+    const project = req.query.project || req.body.project || 'default'
     
     if (!npc.id) {
       return res.status(400).json({ error: 'NPC ID is required' })
     }
     
-    // Upsert: update if exists, insert if not
-    await db.collection(COLLECTIONS.NPCS).updateOne(
-      { id: npc.id },
-      { $set: npc },
-      { upsert: true }
-    )
+    // Add project to the NPC data
+    npc.project = project
     
-    res.json(npc)
+    // Upsert: update if exists, insert if not (based on compound unique key)
+    const result = await NPC.findOneAndUpdate(
+      { project, id: npc.id },
+      npc,
+      { upsert: true, new: true }
+    ).lean()
+    
+    res.json(result)
   } catch (error) {
     console.error('Error saving NPC:', error)
     res.status(500).json({ error: 'Failed to save NPC' })
@@ -61,8 +63,8 @@ router.post('/', async (req, res) => {
 // Delete NPC
 router.delete('/:id', async (req, res) => {
   try {
-    const db = await getDatabase()
-    const result = await db.collection(COLLECTIONS.NPCS).deleteOne({ id: req.params.id })
+    const project = req.query.project || 'default'
+    const result = await NPC.deleteOne({ project, id: req.params.id })
     
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'NPC not found' })

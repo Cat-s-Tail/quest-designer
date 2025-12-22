@@ -6,7 +6,7 @@ import NPCEditor from '@/components/NPCEditor'
 
 export default function NPCsPage() {
   const router = useRouter()
-  const { currentFile, currentData, loading, error, loadFiles } = useDataStore()
+  const { currentFile, currentData, currentProject, setProject, loading, error, loadFiles } = useDataStore()
 
   useEffect(() => {
     loadFiles()
@@ -39,12 +39,24 @@ export default function NPCsPage() {
         <div className="border-b border-slate-700 p-6">
           <div className="flex justify-between items-center mb-4">
             <h1 className="text-3xl font-bold">NPC Editor</h1>
-            <button
-              onClick={() => router.push('/editor/quests')}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition"
-            >
-              → Quest Editor
-            </button>
+            <div className="flex gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-slate-400">Project:</label>
+                <input
+                  type="text"
+                  value={currentProject}
+                  onChange={(e) => setProject(e.target.value)}
+                  placeholder="default"
+                  className="px-3 py-2 bg-slate-800 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => router.push('/editor/quests')}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded transition"
+              >
+                → Quest Editor
+              </button>
+            </div>
           </div>
           <FileSelector type="npcs" />
         </div>
