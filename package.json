@@ -7,8 +7,9 @@
     "dev": "concurrently \"pnpm --filter quest-designer-backend dev\" \"pnpm --filter quest-designer-frontend dev\"",
     "web": "pnpm --filter quest-designer-frontend dev",
     "serve": "pnpm --filter quest-designer-backend dev",
-    "build": "pnpm --filter quest-designer-backend build && pnpm --filter quest-designer-frontend build",
-    "start": "pnpm --filter quest-designer-backend start"
+    "build:frontend": "pnpm --filter quest-designer-frontend build",
+    "start:backend": "pnpm --filter quest-designer-backend start",
+    "start:frontend": "pnpm --filter quest-designer-frontend start"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
