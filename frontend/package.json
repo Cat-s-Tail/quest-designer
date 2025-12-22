@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Next.js frontend for quest designer",
   "private": true,
+  "packageManager": "pnpm@8.15.0",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "main": "src/server.js",
+  "packageManager": "pnpm@8.15.0",
   "scripts": {
+    "build": "echo 'No build step required'",
     "dev": "node --watch src/server.js",
     "start": "node src/server.js"
   },

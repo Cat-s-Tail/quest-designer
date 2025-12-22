@@ -1,0 +1,12 @@
+[phases.setup]
+nixPkgs = ["nodejs", "pnpm"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = ["echo 'No build step required for backend'"]
+
+[start]
+cmd = "pnpm start"
+
