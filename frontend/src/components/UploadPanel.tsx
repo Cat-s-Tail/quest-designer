@@ -42,8 +42,15 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const text = await file.text()
       const data = JSON.parse(text)
 
+      // Preserve original filename - prefix with type folder
+      const originalFilename = file.name
+      const filename = type === 'npcs' 
+        ? `npcs/${originalFilename}` 
+        : `quests/${originalFilename}`
+      const payload = { ...data, filename }
+
       const endpoint = type === 'npcs' ? '/api/upload/npcs' : '/api/upload/missions'
-      const response = await axios.post(`${API_URL}${endpoint}`, data, {
+      const response = await axios.post(`${API_URL}${endpoint}`, payload, {
         params: { project: currentProject }
       })
 
