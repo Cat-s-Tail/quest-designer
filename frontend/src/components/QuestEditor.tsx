@@ -96,15 +96,24 @@ export default function QuestEditor() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header with Save Button */}
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-lg">Quests</h3>
-        <button
-          onClick={handleAddQuest}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded transition"
-        >
-          + New Quest
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving || !!parseError}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 rounded transition"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </button>
+          <button
+            onClick={handleAddQuest}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded transition"
+          >
+            + New Quest
+          </button>
+        </div>
       </div>
 
       {/* Tree View and Detail Editor - Side by Side */}
@@ -116,7 +125,10 @@ export default function QuestEditor() {
             selectedQuest={selectedQuest} 
             onSelectQuest={setSelectedQuest}
             onAddQuest={(newQuest: any) => {
-              currentData.quests.push(newQuest)
+              const newQuestWithDefaults = addQuest()
+              if (newQuestWithDefaults) {
+                setSelectedQuest(newQuestWithDefaults.id)
+              }
             }}
             onRelink={(sourceId: string, targetId: string, isBreaking?: boolean) => {
               const quest = currentData.quests.find((q: any) => q.id === sourceId)
@@ -428,14 +440,6 @@ export default function QuestEditor() {
                 })()}
               </div>
             )}
-
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !!parseError}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 rounded transition"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
           </div>
         )}
       </div>

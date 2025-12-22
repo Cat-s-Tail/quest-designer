@@ -114,7 +114,19 @@ export default function NPCEditor() {
             npc={npc}
             selectedOption={selectedOption}
             onSelectOption={setSelectedOption}
-            onAddOption={() => {}}
+            onAddOption={() => {
+              if (!npc || !npc.nodes) return
+              const newNode = {
+                id: `node_${Date.now()}`,
+                name: 'New Node',
+                type: 'dialog',
+                texts: ['New dialog text'],
+                next: null
+              }
+              const updatedNodes = [...npc.nodes, newNode]
+              updateNPC(npc.id, { nodes: updatedNodes })
+              setSelectedOption({ nodeId: newNode.id })
+            }}
             onRelink={(sourceId: string, targetId: string) => {
               if (!npc) return
               
