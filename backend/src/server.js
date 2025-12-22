@@ -4,8 +4,6 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { connectToDatabase, closeDatabase } from './config/database.js'
-import questRoutes from './routes/quests.js'
-import npcRoutes from './routes/npcs.js'
 import uploadRoutes from './routes/upload.js'
 import filesRoutes from './routes/files.js'
 
@@ -23,9 +21,6 @@ app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Routes
-app.use('/api/quests', questRoutes)
-app.use('/api/missions', questRoutes) // Alias for quests -> missions
-app.use('/api/npcs', npcRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/files', filesRoutes)
 

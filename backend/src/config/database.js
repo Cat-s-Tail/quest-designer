@@ -39,6 +39,6 @@ export async function closeDatabase() {
 
 // Collections
 export const COLLECTIONS = {
-  NPCS: 'npcs',
-  MISSIONS: 'missions'
+  NPC_FILES: 'npc_files',
+  QUEST_FILES: 'quest_files'
 }

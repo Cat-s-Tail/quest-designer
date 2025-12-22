@@ -1,41 +1,21 @@
 import express from 'express'
-import path from 'path'
-import fs from 'fs-extra'
-import { fileURLToPath } from 'url'
+import NPCFile from '../models/NPC.js'
+import QuestFile from '../models/Quest.js'
 
 const router = express.Router()
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const DATA_PATH = path.resolve(__dirname, '../../../data')
 
 // Get list of files
 router.get('/files', async (req, res) => {
   try {
+    const project = req.query.project || 'default'
+    
+    const npcFiles = await NPCFile.find({ project }).select('filename').lean()
+    const questFiles = await QuestFile.find({ project }).select('filename').lean()
+    
     const files = {
-      npcs: [],
-      quests: [],
+      npcs: npcFiles.map(f => f.filename),
+      quests: questFiles.map(f => f.filename),
       other: []
-    }
-
-    // Get files from data folder
-    const items = await fs.readdir(DATA_PATH, { recursive: true })
-
-    for (const item of items) {
-      const fullPath = path.join(DATA_PATH, item)
-      const stat = await fs.stat(fullPath)
-
-      if (!stat.isFile()) continue
-      if (item.endsWith('.meta')) continue
-      if (!item.endsWith('.json')) continue
-
-      if (item.includes('npc')) {
-        files.npcs.push(item)
-      } else if (item.includes('quest')) {
-        files.quests.push(item)
-      } else {
-        files.other.push(item)
-      }
     }
 
     res.json(files)
@@ -48,19 +28,30 @@ router.get('/files', async (req, res) => {
 router.get('/file', async (req, res) => {
   try {
     const { path: filePath } = req.query
+    const project = req.query.project || 'default'
 
     if (!filePath) {
       return res.status(400).json({ error: 'path query parameter is required' })
     }
 
-    const fullPath = path.resolve(DATA_PATH, filePath)
-
-    // Prevent directory traversal
-    if (!fullPath.startsWith(DATA_PATH)) {
-      return res.status(403).json({ error: 'Access denied' })
+    // Determine if it's an NPC or Quest file
+    let content
+    if (filePath.includes('npc')) {
+      const file = await NPCFile.findOne({ project, filename: filePath }).select('-_id -__v -createdAt -updatedAt').lean()
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' })
+      }
+      content = { npcs: file.npcs }
+    } else if (filePath.includes('quest')) {
+      const file = await QuestFile.findOne({ project, filename: filePath }).select('-_id -__v -createdAt -updatedAt').lean()
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' })
+      }
+      content = { quests: file.quests }
+    } else {
+      return res.status(400).json({ error: 'Cannot determine file type from path' })
     }
 
-    const content = await fs.readJSON(fullPath)
     res.json(content)
   } catch (error) {
     res.status(500).json({ error: `Failed to read file: ${error.message}` })
@@ -71,23 +62,28 @@ router.get('/file', async (req, res) => {
 router.post('/file', async (req, res) => {
   try {
     const { path: filePath, content } = req.body
+    const project = req.query.project || req.body.project || 'default'
 
     if (!filePath || !content) {
       return res.status(400).json({ error: 'path and content are required' })
     }
 
-    const fullPath = path.resolve(DATA_PATH, filePath)
-
-    // Prevent directory traversal
-    if (!fullPath.startsWith(DATA_PATH)) {
-      return res.status(403).json({ error: 'Access denied' })
+    // Determine if it's an NPC or Quest file and save
+    if (filePath.includes('npc') && content.npcs) {
+      await NPCFile.findOneAndUpdate(
+        { project, filename: filePath },
+        { project, filename: filePath, npcs: content.npcs },
+        { upsert: true, new: true }
+      )
+    } else if (filePath.includes('quest') && content.quests) {
+      await QuestFile.findOneAndUpdate(
+        { project, filename: filePath },
+        { project, filename: filePath, quests: content.quests },
+        { upsert: true, new: true }
+      )
+    } else {
+      return res.status(400).json({ error: 'Invalid file type or content format' })
     }
-
-    // Ensure directory exists
-    await fs.ensureDir(path.dirname(fullPath))
-
-    // Save file
-    await fs.writeJSON(fullPath, content, { spaces: 2 })
 
     res.json({ success: true, path: filePath })
   } catch (error) {
@@ -99,37 +95,28 @@ router.post('/file', async (req, res) => {
 router.post('/create', async (req, res) => {
   try {
     const { path: filePath, template = 'npcs' } = req.body
+    const project = req.query.project || req.body.project || 'default'
 
     if (!filePath) {
       return res.status(400).json({ error: 'path is required' })
     }
 
-    const fullPath = path.resolve(DATA_PATH, filePath)
-
-    // Prevent directory traversal
-    if (!fullPath.startsWith(DATA_PATH)) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
-
     // Check if file exists
-    if (await fs.pathExists(fullPath)) {
-      return res.status(409).json({ error: 'File already exists' })
-    }
-
-    let content = {}
-
     if (template === 'npcs') {
-      content = { npcs: [] }
+      const existing = await NPCFile.findOne({ project, filename: filePath })
+      if (existing) {
+        return res.status(409).json({ error: 'File already exists' })
+      }
+      await NPCFile.create({ project, filename: filePath, npcs: [] })
     } else if (template === 'quests') {
-      content = { quests: [] }
+      const existing = await QuestFile.findOne({ project, filename: filePath })
+      if (existing) {
+        return res.status(409).json({ error: 'File already exists' })
+      }
+      await QuestFile.create({ project, filename: filePath, quests: [] })
     }
 
-    // Ensure directory exists
-    await fs.ensureDir(path.dirname(fullPath))
-
-    // Create file
-    await fs.writeJSON(fullPath, content, { spaces: 2 })
-
+    const content = template === 'npcs' ? { npcs: [] } : { quests: [] }
     res.json({ success: true, path: filePath, content })
   } catch (error) {
     res.status(500).json({ error: `Failed to create file: ${error.message}` })
@@ -140,19 +127,20 @@ router.post('/create', async (req, res) => {
 router.delete('/file', async (req, res) => {
   try {
     const { path: filePath } = req.query
+    const project = req.query.project || 'default'
 
     if (!filePath) {
       return res.status(400).json({ error: 'path query parameter is required' })
     }
 
-    const fullPath = path.resolve(DATA_PATH, filePath)
-
-    // Prevent directory traversal
-    if (!fullPath.startsWith(DATA_PATH)) {
-      return res.status(403).json({ error: 'Access denied' })
+    // Determine if it's an NPC or Quest file and delete
+    if (filePath.includes('npc')) {
+      await NPCFile.deleteOne({ project, filename: filePath })
+    } else if (filePath.includes('quest')) {
+      await QuestFile.deleteOne({ project, filename: filePath })
+    } else {
+      return res.status(400).json({ error: 'Cannot determine file type from path' })
     }
-
-    await fs.remove(fullPath)
 
     res.json({ success: true })
   } catch (error) {
@@ -161,4 +149,3 @@ router.delete('/file', async (req, res) => {
 })
 
 export default router
-

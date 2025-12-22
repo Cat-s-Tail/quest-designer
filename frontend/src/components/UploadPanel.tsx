@@ -84,7 +84,7 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = type === 'npcs' ? 'npcs.json' : 'quests.json'
+      link.download = `${type}_${currentProject}.json`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -99,6 +99,43 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       setMessage({
         type: 'error',
         text: (error as any).response?.data?.error || (error as any).message || 'Failed to export file'
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleExportZip = async (type: string) => {
+    setExporting(true)
+    setMessage(null)
+
+    try {
+      const endpoint = type === 'npcs' ? '/api/upload/export/npcs/zip' : '/api/upload/export/missions/zip'
+      const response = await axios.get(`${API_URL}${endpoint}`, {
+        params: { project: currentProject },
+        responseType: 'blob'
+      })
+
+      // Create a blob and download the file
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${type}_${currentProject}_${Date.now()}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      setMessage({
+        type: 'success',
+        text: `Successfully exported ${type} to ZIP (one file per document)`
+      })
+    } catch (error) {
+      console.error('Export ZIP error:', error)
+      setMessage({
+        type: 'error',
+        text: (error as any).response?.data?.error || (error as any).message || 'Failed to export ZIP file'
       })
     } finally {
       setExporting(false)
@@ -122,7 +159,9 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
         {stats && (
           <div className="mb-4 p-3 bg-gray-100 rounded-lg">
             <p className="text-sm text-gray-600">
-              Current Database: <span className="font-semibold">{stats.npcs} NPCs</span>,{' '}
+              <span className="font-semibold">Project: {currentProject}</span>
+              <br />
+              <span className="font-semibold">{stats.npcs} NPCs</span>,{' '}
               <span className="font-semibold">{stats.missions} Missions</span>
             </p>
           </div>
@@ -195,18 +234,33 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <h3 className="font-semibold text-gray-700 mb-2">Export NPCs</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Download all NPCs from the database as a JSON file.
+                  Download all NPCs from the database.
                 </p>
-                <button
-                  onClick={() => handleExport('npcs')}
-                  disabled={uploading || exporting || (stats && stats.npcs === 0)}
-                  className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download NPCs JSON
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExport('npcs')}
+                    disabled={uploading || exporting || (stats && stats.npcs === 0)}
+                    className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    JSON (All)
+                  </button>
+                  <button
+                    onClick={() => handleExportZip('npcs')}
+                    disabled={uploading || exporting || (stats && stats.npcs === 0)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    ZIP (Separate)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  JSON: All NPCs in one file. ZIP: One file per NPC.
+                </p>
               </div>
             </div>
           )}
@@ -240,18 +294,33 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <h3 className="font-semibold text-gray-700 mb-2">Export Missions</h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Download all missions from the database as a JSON file.
+                  Download all missions from the database.
                 </p>
-                <button
-                  onClick={() => handleExport('missions')}
-                  disabled={uploading || exporting || (stats && stats.missions === 0)}
-                  className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download Missions JSON
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExport('missions')}
+                    disabled={uploading || exporting || (stats && stats.missions === 0)}
+                    className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    JSON (All)
+                  </button>
+                  <button
+                    onClick={() => handleExportZip('missions')}
+                    disabled={uploading || exporting || (stats && stats.missions === 0)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    ZIP (Separate)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  JSON: All missions in one file. ZIP: One file per mission.
+                </p>
               </div>
             </div>
           )}

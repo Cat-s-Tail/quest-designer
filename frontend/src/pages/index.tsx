@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useDataStore } from '../store/dataStore'
 import UploadPanel from '../components/UploadPanel'
 
 export default function Home() {
   const [showUpload, setShowUpload] = useState(false)
+  const { currentProject, setProject } = useDataStore()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -11,6 +13,16 @@ export default function Home() {
           <div>
             <h1 className="text-4xl font-bold text-white mb-4">Quest Designer</h1>
             <p className="text-xl text-slate-300">Visual NPC and Quest Graph Editor</p>
+            <div className="flex items-center gap-2 mt-4">
+              <label className="text-sm text-slate-400">Current Project:</label>
+              <input
+                type="text"
+                value={currentProject}
+                onChange={(e) => setProject(e.target.value)}
+                placeholder="default"
+                className="px-3 py-2 bg-slate-800 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
           </div>
           <button
             onClick={() => setShowUpload(true)}

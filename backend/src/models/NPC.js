@@ -48,17 +48,10 @@ const NodeSchema = new mongoose.Schema({
   }
 }, { _id: false })
 
-const NPCSchema = new mongoose.Schema({
-  project: {
-    type: String,
-    required: true,
-    default: 'default',
-    index: true
-  },
+const NPCItemSchema = new mongoose.Schema({
   id: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   name: {
     type: String,
@@ -70,14 +63,29 @@ const NPCSchema = new mongoose.Schema({
   },
   options: [OptionSchema],
   nodes: [NodeSchema]
+}, { _id: false })
+
+// This represents a file containing multiple NPCs
+const NPCFileSchema = new mongoose.Schema({
+  project: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true
+  },
+  filename: {
+    type: String,
+    required: true,
+    index: true
+  },
+  npcs: [NPCItemSchema]
 }, {
   timestamps: true
 })
 
-// Compound unique index: project + id must be unique
-NPCSchema.index({ project: 1, id: 1 }, { unique: true })
+// Compound unique index: project + filename must be unique
+NPCFileSchema.index({ project: 1, filename: 1 }, { unique: true })
 
-const NPC = mongoose.model('NPC', NPCSchema, 'npcs')
+const NPCFile = mongoose.model('NPCFile', NPCFileSchema, 'npc_files')
 
-export default NPC
-
+export default NPCFile

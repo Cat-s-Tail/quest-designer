@@ -54,17 +54,10 @@ const RewardsSchema = new mongoose.Schema({
   }]
 }, { _id: false })
 
-const QuestSchema = new mongoose.Schema({
-  project: {
-    type: String,
-    required: true,
-    default: 'default',
-    index: true
-  },
+const QuestItemSchema = new mongoose.Schema({
   id: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   title: {
     type: String,
@@ -103,14 +96,29 @@ const QuestSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   }
+}, { _id: false })
+
+// This represents a file containing multiple Quests
+const QuestFileSchema = new mongoose.Schema({
+  project: {
+    type: String,
+    required: true,
+    default: 'default',
+    index: true
+  },
+  filename: {
+    type: String,
+    required: true,
+    index: true
+  },
+  quests: [QuestItemSchema]
 }, {
   timestamps: true
 })
 
-// Compound unique index: project + id must be unique
-QuestSchema.index({ project: 1, id: 1 }, { unique: true })
+// Compound unique index: project + filename must be unique
+QuestFileSchema.index({ project: 1, filename: 1 }, { unique: true })
 
-const Quest = mongoose.model('Quest', QuestSchema, 'missions')
+const QuestFile = mongoose.model('QuestFile', QuestFileSchema, 'quest_files')
 
-export default Quest
-
+export default QuestFile
