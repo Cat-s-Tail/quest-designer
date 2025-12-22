@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import ReactFlow, {
   Background,
   Controls,
@@ -44,6 +44,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 
 export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink }: any) {
   const [_nodeIdCounter, _setNodeIdCounter] = useState(quests.length)
+  const [questsVersion, setQuestsVersion] = useState(0)
 
   // Build nodes from quests
   const initialNodes = useMemo(() => {
@@ -107,8 +108,29 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     return getLayoutedElements(initialNodes, initialEdges, 'TB')
   }, [initialNodes, initialEdges])
 
-  const [nodes, _setNodes, onNodesChange] = useNodesState(layoutedNodes)
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges)
+
+  // Track quest count to detect additions/deletions
+  useEffect(() => {
+    setQuestsVersion(prev => prev + 1)
+  }, [quests.length])
+
+  // Update nodes and edges when quests change, preserving positions for existing nodes
+  useEffect(() => {
+    setNodes(prevNodes => {
+      const newNodesMap = new Map(layoutedNodes.map((n: any) => [n.id, n]))
+      // Keep existing nodes with their positions
+      const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
+        const newNode = newNodesMap.get(prevNode.id)
+        return { ...newNode, position: prevNode.position }
+      })
+      // Add new nodes with layout positions
+      const newOnes = layoutedNodes.filter(n => !prevNodes.find(pn => pn.id === n.id))
+      return [...existing, ...newOnes]
+    })
+    setEdges(layoutedEdges)
+  }, [layoutedNodes, layoutedEdges, setNodes, setEdges, questsVersion])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
     onSelectQuest(node.id)
