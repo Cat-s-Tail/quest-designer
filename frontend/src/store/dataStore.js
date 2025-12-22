@@ -167,6 +167,22 @@ export const useDataStore = create(
         data.quests.push(newQuest)
         set({ currentData: { ...data } })
         return newQuest
+      },
+
+      deleteQuest: (questId) => {
+        const data = get().currentData
+        if (!data || !data.quests) return
+
+        // Remove the quest
+        const updatedQuests = data.quests.filter(q => q.id !== questId)
+        
+        // Clean up references in other quests' unlocks
+        const cleanedQuests = updatedQuests.map(q => ({
+          ...q,
+          unlocks: (q.unlocks || []).filter(id => id !== questId)
+        }))
+
+        set({ currentData: { ...data, quests: cleanedQuests } })
       }
     }),
     {

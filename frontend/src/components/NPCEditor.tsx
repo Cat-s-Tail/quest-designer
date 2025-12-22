@@ -50,6 +50,58 @@ export default function NPCEditor() {
     updateNPC(npc.id, { nodes: updatedNodes })
   }
 
+  // Helper to delete node by ID
+  const deleteNodeById = (nodeId: string) => {
+    if (!nodeId || nodeId === 'root' || !npc) return
+    
+    // Remove the node
+    const updatedNodes = npc.nodes.filter((n: any) => n.id !== nodeId)
+    
+    // Clean up references to this node
+    // 1. Clean up root options
+    const updatedOptions = npc.options?.map((opt: any) => 
+      opt.entryNode === nodeId ? { ...opt, entryNode: null } : opt
+    )
+    
+    // 2. Clean up node connections
+    const cleanedNodes = updatedNodes.map((n: any) => {
+      // Clean next field
+      if (n.next === nodeId) {
+        const { next, ...rest } = n
+        return rest
+      }
+      
+      // Clean options entryNode
+      if (n.type === 'options' && n.options) {
+        return {
+          ...n,
+          options: n.options.map((opt: any) => 
+            (typeof opt === 'object' && opt.entryNode === nodeId) 
+              ? { ...opt, entryNode: null } 
+              : opt
+          )
+        }
+      }
+      
+      // Clean condition entryNode
+      if (n.type === 'condition' && n.conditions) {
+        return {
+          ...n,
+          conditions: n.conditions.map((cond: any) =>
+            (typeof cond === 'object' && cond.entryNode === nodeId)
+              ? { ...cond, entryNode: null }
+              : cond
+          )
+        }
+      }
+      
+      return n
+    })
+    
+    updateNPC(npc.id, { nodes: cleanedNodes, options: updatedOptions })
+    setSelectedOption(null)
+  }
+
   return (
     <div className="space-y-4">
       {/* Toast Notification */}
@@ -335,9 +387,21 @@ export default function NPCEditor() {
 
               return node ? (
                 <div className="space-y-4">
-                  <h4 className="font-bold text-slate-300 border-b border-slate-700 pb-2">
-                    Edit {node.type} Node
-                  </h4>
+                  <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+                    <h4 className="font-bold text-slate-300">
+                      Edit {node.type} Node
+                    </h4>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete node "${node.name || node.id}"?`)) {
+                          deleteNodeById(node.id)
+                        }
+                      }}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                    >
+                      Delete Node
+                    </button>
+                  </div>
                   
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Node ID (Read-only)</label>

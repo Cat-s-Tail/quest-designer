@@ -6,7 +6,7 @@ import HighlightedCondition from './HighlightedCondition'
 import Toast from './Toast'
 
 export default function QuestEditor() {
-  const { currentFile, currentData, saveFile, updateQuest, addQuest } = useDataStore()
+  const { currentFile, currentData, saveFile, updateQuest, addQuest, deleteQuest } = useDataStore()
   const [selectedQuest, setSelectedQuest] = useState<string | null>(null)
   const [selectedObjective, setSelectedObjective] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -16,6 +16,13 @@ export default function QuestEditor() {
   const handleAddQuest = () => {
     const quest = addQuest()
     setSelectedQuest(quest.id)
+  }
+
+  const handleDeleteQuest = (questId: string) => {
+    if (confirm(`Delete quest "${quest?.title || questId}"? This will also remove it from other quests' unlock lists.`)) {
+      deleteQuest(questId)
+      setSelectedQuest(null)
+    }
   }
 
   const handleSave = async () => {
@@ -155,6 +162,16 @@ export default function QuestEditor() {
         {/* Detail Editor - Right (1/3 width) */}
         {quest && (
           <div className="flex-[1] bg-slate-800 rounded-lg p-4 space-y-4 overflow-y-auto" style={{ height: '600px' }}>
+            <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
+              <h4 className="font-bold text-slate-300">Edit Quest</h4>
+              <button
+                onClick={() => handleDeleteQuest(quest.id)}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+              >
+                Delete Quest
+              </button>
+            </div>
+            
             <div>
               <label className="block text-sm text-slate-400 mb-1">Title</label>
               <input
