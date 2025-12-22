@@ -6,10 +6,10 @@ import Toast from './Toast'
 
 export default function NPCEditor() {
   const { currentFile, currentData, saveFile, updateNPC, addNPC } = useDataStore()
-  const [selectedNPC, setSelectedNPC] = useState(null)
-  const [selectedOption, setSelectedOption] = useState(null)
+  const [selectedNPC, setSelectedNPC] = useState<string | null>(null)
+  const [selectedOption, setSelectedOption] = useState<{ nodeId: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // Reset selectedOption when NPC changes
   useEffect(() => {
@@ -27,24 +27,24 @@ export default function NPCEditor() {
       await saveFile(currentFile, currentData)
       setToast({ message: 'Saved successfully!', type: 'success' })
     } catch (error) {
-      setToast({ message: `Error saving: ${error.message}`, type: 'error' })
+      setToast({ message: `Error saving: ${error instanceof Error ? error.message : String(error)}`, type: 'error' })
     } finally {
       setIsSaving(false)
     }
   }
 
-  const npc = selectedNPC && currentData?.npcs ? currentData.npcs.find(n => n.id === selectedNPC) : null
+  const npc = selectedNPC && currentData?.npcs ? currentData.npcs.find((n: any) => n.id === selectedNPC) : null
 
   // Helper to get node by ID
-  const getNodeById = (nodeId) => {
+  const getNodeById = (nodeId: string) => {
     if (!nodeId || nodeId === 'root') return null
-    return npc?.nodes?.find(n => n.id === nodeId) || null
+    return npc?.nodes?.find((n: any) => n.id === nodeId) || null
   }
 
   // Helper to update node by ID
-  const updateNodeById = (nodeId, updates) => {
+  const updateNodeById = (nodeId: string, updates: any) => {
     if (!nodeId || nodeId === 'root' || !npc) return
-    const updatedNodes = npc.nodes.map(n => 
+    const updatedNodes = npc.nodes.map((n: any) => 
       n.id === nodeId ? { ...n, ...updates } : n
     )
     updateNPC(npc.id, { nodes: updatedNodes })
@@ -90,7 +90,7 @@ export default function NPCEditor() {
           {/* NPC List - Top */}
           <div className="bg-slate-800 rounded-lg p-4">
             <div className="flex gap-2 overflow-x-auto">
-              {currentData.npcs.map(n => (
+              {currentData.npcs.map((n: any) => (
                 <div
                   key={n.id}
                   onClick={() => setSelectedNPC(n.id)}
@@ -115,14 +115,14 @@ export default function NPCEditor() {
             selectedOption={selectedOption}
             onSelectOption={setSelectedOption}
             onAddOption={() => {}}
-            onRelink={(sourceId, targetId) => {
+            onRelink={(sourceId: string, targetId: string) => {
               if (!npc) return
               
               // Handle root-level options
               if (sourceId.includes('-root')) {
                 // This is a root option edge - we need to find which option and update its entryNode
                 // For now, we'll update the first option that doesn't have an entryNode
-                const updatedOptions = npc.options?.map((opt, idx) => {
+                const updatedOptions = npc.options?.map((opt: any, idx: number) => {
                   // Find the option that should point to this target
                   // This is a simplification - in a full UI, user would select which option
                   if (idx === 0) return { ...opt, entryNode: targetId }
@@ -133,13 +133,13 @@ export default function NPCEditor() {
               }
 
               // Check if source is options or condition node
-              const sourceNode = npc.nodes?.find(n => n.id === sourceId)
+              const sourceNode = npc.nodes?.find((n: any) => n.id === sourceId)
               
               if (sourceNode?.type === 'options') {
                 // For options nodes, update the first option without entryNode
-                const updatedNodes = npc.nodes.map(n => {
+                const updatedNodes = npc.nodes.map((n: any) => {
                   if (n.id === sourceId) {
-                    const updatedOptions = n.options?.map((opt, idx) => {
+                    const updatedOptions = n.options?.map((opt: any, idx: number) => {
                       if (idx === 0 && !opt.entryNode) {
                         return { ...opt, entryNode: targetId }
                       }
@@ -152,9 +152,9 @@ export default function NPCEditor() {
                 updateNPC(npc.id, { nodes: updatedNodes })
               } else if (sourceNode?.type === 'condition') {
                 // For condition nodes, update the first condition without entryNode
-                const updatedNodes = npc.nodes.map(n => {
+                const updatedNodes = npc.nodes.map((n: any) => {
                   if (n.id === sourceId) {
-                    const updatedConditions = n.conditions?.map((cond, idx) => {
+                    const updatedConditions = n.conditions?.map((cond: any, idx: number) => {
                       if (idx === 0 && !(typeof cond === 'object' ? cond.entryNode : false)) {
                         return typeof cond === 'object' 
                           ? { ...cond, entryNode: targetId }
@@ -169,18 +169,18 @@ export default function NPCEditor() {
                 updateNPC(npc.id, { nodes: updatedNodes })
               } else {
                 // For non-options/condition nodes, update the next field
-                const updatedNodes = npc.nodes.map(n => 
+                const updatedNodes = npc.nodes.map((n: any) => 
                   n.id === sourceId ? { ...n, next: targetId } : n
                 )
                 updateNPC(npc.id, { nodes: updatedNodes })
               }
             }}
-            onBreakLink={(fromId, toId, optionIndex) => {
+            onBreakLink={(fromId: string, toId: string, optionIndex?: number) => {
               if (!npc) return
               
               // Handle root-level options
               if (fromId.includes('-root')) {
-                const updatedOptions = npc.options?.map(opt => 
+                const updatedOptions = npc.options?.map((opt: any) => 
                   opt.entryNode === toId ? { ...opt, entryNode: null } : opt
                 )
                 updateNPC(npc.id, { options: updatedOptions })
@@ -188,13 +188,13 @@ export default function NPCEditor() {
               }
 
               // Check if it's an options or condition node
-              const sourceNode = npc.nodes?.find(n => n.id === fromId)
+              const sourceNode = npc.nodes?.find((n: any) => n.id === fromId)
               
               if (sourceNode?.type === 'options' && optionIndex !== undefined) {
                 // Remove entryNode from specific option
-                const updatedNodes = npc.nodes.map(n => {
+                const updatedNodes = npc.nodes.map((n: any) => {
                   if (n.id === fromId) {
-                    const updatedOptions = n.options?.map((opt, idx) => {
+                    const updatedOptions = n.options?.map((opt: any, idx: number) => {
                       if (idx === optionIndex) {
                         return { ...opt, entryNode: null }
                       }
@@ -207,9 +207,9 @@ export default function NPCEditor() {
                 updateNPC(npc.id, { nodes: updatedNodes })
               } else if (sourceNode?.type === 'condition' && optionIndex !== undefined) {
                 // Remove entryNode from specific condition
-                const updatedNodes = npc.nodes.map(n => {
+                const updatedNodes = npc.nodes.map((n: any) => {
                   if (n.id === fromId) {
-                    const updatedConditions = n.conditions?.map((cond, idx) => {
+                    const updatedConditions = n.conditions?.map((cond: any, idx: number) => {
                       if (idx === optionIndex) {
                         return typeof cond === 'object' 
                           ? { ...cond, entryNode: null }
@@ -224,7 +224,7 @@ export default function NPCEditor() {
                 updateNPC(npc.id, { nodes: updatedNodes })
               } else {
                 // Remove next field from node
-                const updatedNodes = npc.nodes.map(n => {
+                const updatedNodes = npc.nodes.map((n: any) => {
                   if (n.id === fromId && n.next === toId) {
                     const { next, ...rest } = n
                     return rest
@@ -275,7 +275,7 @@ export default function NPCEditor() {
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Root Options ({npc.options?.length || 0})</label>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {(npc.options || []).map((option, idx) => (
+                      {(npc.options || []).map((option: any, idx: number) => (
                         <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
                           <div>
                             <label className="block text-xs text-slate-400 mb-1">Text</label>
@@ -365,7 +365,7 @@ export default function NPCEditor() {
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">Dialog Texts</label>
                       <div className="space-y-2">
-                        {(node.texts || []).map((text, idx) => (
+                        {(node.texts || []).map((text: string, idx: number) => (
                           <div key={idx} className="flex gap-2">
                             <textarea
                               value={text}
@@ -379,7 +379,7 @@ export default function NPCEditor() {
                             />
                             <button
                               onClick={() => {
-                                const newTexts = node.texts.filter((_, i) => i !== idx)
+                                const newTexts = node.texts.filter((_: any, i: number) => i !== idx)
                                 updateNodeById(node.id, { texts: newTexts })
                               }}
                               className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs h-8"
@@ -406,7 +406,7 @@ export default function NPCEditor() {
                     <div>
                       <label className="block text-xs text-slate-500 mb-1">Actions</label>
                       <div className="space-y-2">
-                        {(node.actions || []).map((action, idx) => (
+                        {(node.actions || []).map((action: string, idx: number) => (
                           <div key={idx} className="flex gap-2">
                             <input
                               value={action}
@@ -419,7 +419,7 @@ export default function NPCEditor() {
                             />
                             <button
                               onClick={() => {
-                                const newActions = node.actions.filter((_, i) => i !== idx)
+                                const newActions = node.actions.filter((_: any, i: number) => i !== idx)
                                 updateNodeById(node.id, { actions: newActions })
                               }}
                               className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
@@ -448,7 +448,7 @@ export default function NPCEditor() {
                         Options ({node.options?.length || 0})
                       </label>
                       <div className="space-y-2">
-                        {(node.options || []).map((option, idx) => (
+                        {(node.options || []).map((option: any, idx: number) => (
                           <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
                             <div className="flex gap-2">
                               <input
@@ -467,7 +467,7 @@ export default function NPCEditor() {
                               />
                               <button
                                 onClick={() => {
-                                  const newOptions = node.options.filter((_, i) => i !== idx)
+                                  const newOptions = node.options.filter((_: any, i: number) => i !== idx)
                                   updateNodeById(node.id, { options: newOptions })
                                 }}
                                 className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
@@ -500,7 +500,7 @@ export default function NPCEditor() {
                         Conditions ({node.conditions?.length || 0})
                       </label>
                       <div className="space-y-2">
-                        {(node.conditions || []).map((condition, idx) => (
+                        {(node.conditions || []).map((condition: any, idx: number) => (
                           <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
                             <div className="flex gap-2 items-start">
                               <div className="flex-1 space-y-1">
@@ -527,7 +527,7 @@ export default function NPCEditor() {
                               </div>
                               <button
                                 onClick={() => {
-                                  const newConditions = node.conditions.filter((_, i) => i !== idx)
+                                  const newConditions = node.conditions.filter((_: any, i: number) => i !== idx)
                                   updateNodeById(node.id, { conditions: newConditions })
                                 }}
                                 className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs h-8"

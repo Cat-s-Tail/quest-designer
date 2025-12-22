@@ -1,13 +1,10 @@
 import { useCallback, useMemo, useEffect, useState } from 'react'
 import ReactFlow, {
-  Node,
-  Edge,
   Background,
   Controls,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import dagre from 'dagre'
@@ -23,20 +20,20 @@ dagreGraph.setDefaultEdgeLabel(() => ({}))
 const nodeWidth = 180
 const nodeHeight = 60
 
-const getLayoutedElements = (nodes, edges, direction = 'TB') => {
+const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   dagreGraph.setGraph({ rankdir: direction })
 
-  nodes.forEach((node) => {
+  nodes.forEach((node: any) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
   })
 
-  edges.forEach((edge) => {
+  edges.forEach((edge: any) => {
     dagreGraph.setEdge(edge.source, edge.target)
   })
 
   dagre.layout(dagreGraph)
 
-  const newNodes = nodes.map((node) => {
+  const newNodes = nodes.map((node: any) => {
     const nodeWithPosition = dagreGraph.node(node.id)
     return {
       ...node,
@@ -50,14 +47,14 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOption, onRelink, onBreakLink }) {
+export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOption, onRelink, onBreakLink }: any) {
   const [npcId, setNpcId] = useState(npc?.id)
   
   const initialElements = useMemo(() => {
     if (!npc) return { nodes: [], edges: [] }
     
-    const reactFlowNodes = []
-    const reactFlowEdges = []
+    const reactFlowNodes: any[] = []
+    const reactFlowEdges: any[] = []
 
     // Root NPC node
     reactFlowNodes.push({
@@ -82,7 +79,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     })
 
     // Create option entry edges from root
-    npc.options?.forEach((option, idx) => {
+    npc.options?.forEach((option: any, _idx: number) => {
       if (option.entryNode) {
         reactFlowEdges.push({
           id: `root->${option.entryNode}`,
@@ -100,7 +97,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     })
 
     // Create nodes from flat node list and build edges from next/options
-    npc.nodes?.forEach((node) => {
+    npc.nodes?.forEach((node: any) => {
       reactFlowNodes.push({
         id: node.id,
         data: {
@@ -153,7 +150,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
 
       // Create edges from node.options (for options type nodes)
       if (node.type === 'options' && node.options) {
-        node.options.forEach((option, idx) => {
+        node.options.forEach((option: any, idx: number) => {
           if (option.entryNode) {
             reactFlowEdges.push({
               id: `${node.id}-option${idx}->${option.entryNode}`,
@@ -174,7 +171,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
 
       // Create edges from node.conditions (for condition type nodes)
       if (node.type === 'condition' && node.conditions) {
-        node.conditions.forEach((condition, idx) => {
+        node.conditions.forEach((condition: any, idx: number) => {
           const conditionData = typeof condition === 'object' ? condition : { condition, entryNode: null }
           if (conditionData.entryNode) {
             reactFlowEdges.push({
@@ -215,7 +212,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     } else {
       // Same NPC, update data but preserve positions
       setNodes(prevNodes => {
-        const newNodesMap = new Map(layoutedElements.nodes.map(n => [n.id, n]))
+        const newNodesMap = new Map(layoutedElements.nodes.map((n: any) => [n.id, n]))
         const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
           const newNode = newNodesMap.get(prevNode.id)
           return { ...newNode, position: prevNode.position }
@@ -227,18 +224,18 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     }
   }, [layoutedElements, npc?.id, npcId, setNodes, setEdges])
 
-  const handleNodeClick = useCallback((event, node) => {
+  const handleNodeClick = useCallback((_event: any, node: any) => {
     if (node.data?.nodeId) {
       onSelectOption({ nodeId: node.data.nodeId, type: node.data.nodeType })
     }
   }, [onSelectOption])
 
-  const handleConnect = useCallback((connection) => {
+  const handleConnect = useCallback((connection: any) => {
     if (onRelink && connection.source && connection.target) {
       onRelink(connection.source, connection.target)
     }
     // For non-options nodes, remove old edges before adding new one
-    const sourceNode = npc?.nodes?.find(n => n.id === connection.source.replace(`${npc.id}-root`, 'root'))
+    const sourceNode = npc?.nodes?.find((n: any) => n.id === connection.source.replace(`${npc.id}-root`, 'root'))
     if (sourceNode && sourceNode.type !== 'options') {
       setEdges((eds) => {
         // Remove existing edges from this source
@@ -251,7 +248,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     }
   }, [setEdges, onRelink, npc])
 
-  const handleEdgeClick = useCallback((event, edge) => {
+  const handleEdgeClick = useCallback((event: any, edge: any) => {
     if ((event.ctrlKey || event.metaKey) && onBreakLink) {
       // Extract actual node IDs from edge
       const fromId = edge.source.replace(`${npc?.id}-root`, 'root')

@@ -1,13 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import ReactFlow, {
-  Node,
-  Edge,
   Background,
   Controls,
   useNodesState,
   useEdgesState,
   addEdge,
-  Connection,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import dagre from 'dagre'
@@ -18,21 +15,20 @@ dagreGraph.setDefaultEdgeLabel(() => ({}))
 const nodeWidth = 180
 const nodeHeight = 80
 
-const getLayoutedElements = (nodes, edges, direction = 'TB') => {
-  const isHorizontal = direction === 'LR'
+const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   dagreGraph.setGraph({ rankdir: direction })
 
-  nodes.forEach((node) => {
+  nodes.forEach((node: any) => {
     dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight })
   })
 
-  edges.forEach((edge) => {
+  edges.forEach((edge: any) => {
     dagreGraph.setEdge(edge.source, edge.target)
   })
 
   dagre.layout(dagreGraph)
 
-  const newNodes = nodes.map((node) => {
+  const newNodes = nodes.map((node: any) => {
     const nodeWithPosition = dagreGraph.node(node.id)
     return {
       ...node,
@@ -46,12 +42,12 @@ const getLayoutedElements = (nodes, edges, direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink }) {
-  const [nodeIdCounter, setNodeIdCounter] = useState(quests.length)
+export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink }: any) {
+  const [_nodeIdCounter, _setNodeIdCounter] = useState(quests.length)
 
   // Build nodes from quests
   const initialNodes = useMemo(() => {
-    return quests.map((quest) => ({
+    return quests.map((quest: any) => ({
       id: quest.id,
       data: {
         label: (
@@ -74,10 +70,10 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
 
   // Build edges from unlocks
   const initialEdges = useMemo(() => {
-    const edges = []
-    quests.forEach((quest) => {
+    const edges: any[] = []
+    quests.forEach((quest: any) => {
       if (quest.unlocks && Array.isArray(quest.unlocks)) {
-        quest.unlocks.forEach((unlockedId) => {
+        quest.unlocks.forEach((unlockedId: string) => {
           edges.push({
             id: `${quest.id}->${unlockedId}`,
             source: quest.id,
@@ -111,14 +107,14 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     return getLayoutedElements(initialNodes, initialEdges, 'TB')
   }, [initialNodes, initialEdges])
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes)
+  const [nodes, _setNodes, onNodesChange] = useNodesState(layoutedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges)
 
-  const handleNodeClick = useCallback((event, node) => {
+  const handleNodeClick = useCallback((_event: any, node: any) => {
     onSelectQuest(node.id)
   }, [onSelectQuest])
 
-  const handleEdgeClick = useCallback((event, edge) => {
+  const handleEdgeClick = useCallback((event: any, edge: any) => {
     // Ctrl+Click to break the link
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault()
@@ -134,7 +130,7 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     }
   }, [setEdges, onRelink])
 
-  const handleConnect = useCallback((connection) => {
+  const handleConnect = useCallback((connection: any) => {
     if (onRelink && connection.source && connection.target) {
       onRelink(connection.source, connection.target)
     }

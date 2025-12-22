@@ -7,11 +7,11 @@ import Toast from './Toast'
 
 export default function QuestEditor() {
   const { currentFile, currentData, saveFile, updateQuest, addQuest } = useDataStore()
-  const [selectedQuest, setSelectedQuest] = useState(null)
-  const [selectedObjective, setSelectedObjective] = useState(null)
+  const [selectedQuest, setSelectedQuest] = useState<string | null>(null)
+  const [selectedObjective, setSelectedObjective] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [parseError, setParseError] = useState(null)
-  const [toast, setToast] = useState(null)
+  const [parseError, setParseError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const handleAddQuest = () => {
     const quest = addQuest()
@@ -24,13 +24,13 @@ export default function QuestEditor() {
       await saveFile(currentFile, currentData)
       setToast({ message: 'Saved successfully!', type: 'success' })
     } catch (error) {
-      setToast({ message: `Error saving: ${error.message}`, type: 'error' })
+      setToast({ message: `Error saving: ${error instanceof Error ? error.message : String(error)}`, type: 'error' })
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleStructureChange = (questId, value) => {
+  const handleStructureChange = (questId: string, value: string) => {
     const parser = new ConditionParser(value)
     const tree = parser.parse()
 
@@ -56,8 +56,8 @@ export default function QuestEditor() {
     setSelectedObjective(newObjective.id)
   }
 
-  const handleUpdateObjective = (updates) => {
-    const updatedObjectives = (quest.objectives || []).map(obj =>
+  const handleUpdateObjective = (updates: any) => {
+    const updatedObjectives = (quest.objectives || []).map((obj: any) =>
       obj.id === selectedObjective ? { ...obj, ...updates } : obj
     )
     
@@ -73,15 +73,15 @@ export default function QuestEditor() {
     }
   }
 
-  const handleDeleteObjective = (objId) => {
-    const updatedObjectives = (quest.objectives || []).filter(obj => obj.id !== objId)
+  const handleDeleteObjective = (objId: string) => {
+    const updatedObjectives = (quest.objectives || []).filter((obj: any) => obj.id !== objId)
     updateQuest(quest.id, { objectives: updatedObjectives })
     if (selectedObjective === objId) {
       setSelectedObjective(null)
     }
   }
 
-  const quest = selectedQuest ? currentData.quests.find(q => q.id === selectedQuest) : null
+  const quest = selectedQuest ? currentData.quests.find((q: any) => q.id === selectedQuest) : null
 
   return (
     <div className="space-y-4">
@@ -115,17 +115,16 @@ export default function QuestEditor() {
             quests={currentData.quests || []} 
             selectedQuest={selectedQuest} 
             onSelectQuest={setSelectedQuest}
-            onAddQuest={(newQuest) => {
+            onAddQuest={(newQuest: any) => {
               currentData.quests.push(newQuest)
-              set({ currentData: { ...currentData } })
             }}
-            onRelink={(sourceId, targetId, isBreaking) => {
-              const quest = currentData.quests.find(q => q.id === sourceId)
+            onRelink={(sourceId: string, targetId: string, isBreaking?: boolean) => {
+              const quest = currentData.quests.find((q: any) => q.id === sourceId)
               if (quest) {
                 if (isBreaking) {
                   // Remove the unlock
                   if (quest.unlocks) {
-                    quest.unlocks = quest.unlocks.filter(id => id !== targetId)
+                    quest.unlocks = quest.unlocks.filter((id: string) => id !== targetId)
                     updateQuest(sourceId, { unlocks: quest.unlocks })
                   }
                 } else {
@@ -236,7 +235,7 @@ export default function QuestEditor() {
               <div className="space-y-2">
                 <div className="bg-slate-700 rounded p-2 max-h-40 overflow-y-auto space-y-1">
                   {(quest.objectives || []).length > 0 ? (
-                    (quest.objectives || []).map(obj => (
+                    (quest.objectives || []).map((obj: any) => (
                       <div
                         key={obj.id}
                         onClick={() => setSelectedObjective(obj.id)}
@@ -276,7 +275,7 @@ export default function QuestEditor() {
               <div className="border-t border-slate-700 pt-4 mt-4">
                 <h4 className="font-bold text-slate-300 mb-3">Edit Objective</h4>
                 {(() => {
-                  const obj = (quest.objectives || []).find(o => o.id === selectedObjective)
+                  const obj = (quest.objectives || []).find((o: any) => o.id === selectedObjective)
                   return obj ? (
                     <div className="space-y-3">
                       <div>
@@ -382,7 +381,7 @@ export default function QuestEditor() {
                           Conditions (optional)
                         </label>
                         <div className="space-y-2">
-                          {(obj.conditions || []).map((cond, idx) => (
+                          {(obj.conditions || []).map((cond: string, idx: number) => (
                             <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
                               <div className="flex gap-2">
                                 <textarea
@@ -398,7 +397,7 @@ export default function QuestEditor() {
                                 />
                                 <button
                                   onClick={() => {
-                                    const newConditions = (obj.conditions || []).filter((_, i) => i !== idx)
+                                    const newConditions = (obj.conditions || []).filter((_: any, i: number) => i !== idx)
                                     handleUpdateObjective({ conditions: newConditions })
                                   }}
                                   className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs h-8"

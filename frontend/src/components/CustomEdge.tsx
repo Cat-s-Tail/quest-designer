@@ -1,8 +1,8 @@
 import React from 'react'
-import { getBezierPath, EdgeLabelRenderer, BaseEdge } from 'reactflow'
+import { getBezierPath, EdgeLabelRenderer, BaseEdge, EdgeProps } from 'reactflow'
 
 export default function CustomEdge({
-  id,
+  id: _id,
   sourceX,
   sourceY,
   targetX,
@@ -12,8 +12,8 @@ export default function CustomEdge({
   style = {},
   data,
   markerEnd,
-}) {
-  const [edgePath, labelX, labelY] = getBezierPath({
+}: EdgeProps) {
+  const [edgePath] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,

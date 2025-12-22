@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useDataStore } from '@/store/dataStore'
 
-export default function FileSelector({ type = 'npcs' }) {
+export default function FileSelector({ type = 'npcs' }: { type?: 'npcs' | 'quests' }) {
   const { files, currentFile, loadFile, createFile, deleteFile } = useDataStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newFileName, setNewFileName] = useState('')
@@ -16,15 +16,6 @@ export default function FileSelector({ type = 'npcs' }) {
       setShowCreateModal(false)
     } catch (error) {
       console.error('Failed to create file:', error)
-    }
-  }
-
-  const handleDelete = async (path) => {
-    if (!confirm(`Delete ${path}?`)) return
-    try {
-      await deleteFile(path)
-    } catch (error) {
-      console.error('Failed to delete file:', error)
     }
   }
 
@@ -45,7 +36,7 @@ export default function FileSelector({ type = 'npcs' }) {
         </h3>
         <div className="space-y-1">
           {files[type]?.length > 0 ? (
-            files[type].map(file => (
+            files[type].map((file: string) => (
               <div
                 key={file}
                 onClick={() => loadFile(file)}

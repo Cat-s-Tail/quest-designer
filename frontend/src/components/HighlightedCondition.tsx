@@ -1,4 +1,4 @@
-export default function HighlightedCondition({ text }) {
+export default function HighlightedCondition({ text }: { text?: string }) {
   if (!text) return <span className="text-slate-400">-</span>
 
   // Split by AND/OR/NOT/() while preserving the operators

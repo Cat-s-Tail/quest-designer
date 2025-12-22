@@ -3,11 +3,11 @@ import axios from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
-export default function UploadPanel({ onClose }) {
+export default function UploadPanel({ onClose }: { onClose: () => void }) {
   const [uploading, setUploading] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [message, setMessage] = useState(null)
-  const [stats, setStats] = useState(null)
+  const [message, setMessage] = useState<{ type: string; text: string } | null>(null)
+  const [stats, setStats] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState('npcs')
 
   const loadStats = async () => {
@@ -23,7 +23,7 @@ export default function UploadPanel({ onClose }) {
     loadStats()
   }, [])
 
-  const handleFileUpload = async (event, type) => {
+  const handleFileUpload = async (event: any, type: string) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -51,14 +51,14 @@ export default function UploadPanel({ onClose }) {
       console.error('Upload error:', error)
       setMessage({
         type: 'error',
-        text: error.response?.data?.error || error.message || 'Failed to upload file'
+        text: (error as any).response?.data?.error || (error as any).message || 'Failed to upload file'
       })
     } finally {
       setUploading(false)
     }
   }
 
-  const handleExport = async (type) => {
+  const handleExport = async (type: string) => {
     setExporting(true)
     setMessage(null)
 
@@ -86,7 +86,7 @@ export default function UploadPanel({ onClose }) {
       console.error('Export error:', error)
       setMessage({
         type: 'error',
-        text: error.response?.data?.error || error.message || 'Failed to export file'
+        text: (error as any).response?.data?.error || (error as any).message || 'Failed to export file'
       })
     } finally {
       setExporting(false)
