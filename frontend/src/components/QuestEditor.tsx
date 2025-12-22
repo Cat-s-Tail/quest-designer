@@ -124,7 +124,7 @@ export default function QuestEditor() {
             quests={currentData.quests || []} 
             selectedQuest={selectedQuest} 
             onSelectQuest={setSelectedQuest}
-            onAddQuest={(newQuest: any) => {
+            onAddQuest={() => {
               const newQuestWithDefaults = addQuest()
               if (newQuestWithDefaults) {
                 setSelectedQuest(newQuestWithDefaults.id)
