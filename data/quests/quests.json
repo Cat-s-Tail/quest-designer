@@ -1,0 +1,171 @@
+{
+  "quests": [
+    {
+      "id": "gather_supplies",
+      "title": "Gather Supplies",
+      "description": "Help John gather essential supplies for his business",
+      "giver": "base1.john",
+      "category": "merchant",
+      "difficulty": "easy",
+      "objectiveStructure": "collect_food AND collect_water AND collect_tools AND deliver_to_john",
+      "objectives": [
+        {
+          "id": "collect_food",
+          "type": "submit",
+          "item": "food",
+          "amount": 5,
+          "description": "Collect 5 food items"
+        },
+        {
+          "id": "collect_water",
+          "type": "submit",
+          "item": "water",
+          "amount": 3,
+          "description": "Collect 3 water bottles"
+        },
+        {
+          "id": "collect_tools",
+          "type": "submit",
+          "item": "tools",
+          "amount": 2,
+          "description": "Collect 2 tool sets"
+        },
+        {
+          "id": "deliver_to_john",
+          "type": "event",
+          "eventType": "ITEM_DELIVERED",
+          "eventCondition": "npc = john",
+          "amount": 1,
+          "description": "Deliver all items to John"
+        }
+      ],
+      "rewards": {
+        "xp": 500,
+        "money": 1000,
+        "reputation": 50,
+        "items": []
+      },
+      "unlocks": [
+        "investigate_cave"
+      ],
+      "repeatable": false
+    },
+    {
+      "id": "investigate_cave",
+      "title": "Investigate the Mysterious Cave",
+      "description": "A merchant reports strange noises from the cave nearby. Investigate and report back.",
+      "giver": "john",
+      "category": "exploration",
+      "difficulty": "medium",
+      "objectiveStructure": "enter_cave AND (defeat_goblins OR collect_artifact) AND report_to_john",
+      "objectives": [
+        {
+          "id": "enter_cave",
+          "type": "event",
+          "eventType": "LOCATION_ENTERED",
+          "eventCondition": "location = cave_01",
+          "amount": 1,
+          "description": "Enter the mysterious cave"
+        },
+        {
+          "id": "defeat_goblins",
+          "type": "event",
+          "eventType": "ENEMY_KILLED",
+          "eventCondition": "enemy_id = cave_goblin",
+          "amount": 3,
+          "description": "Defeat 3 cave goblins"
+        },
+        {
+          "id": "collect_artifact",
+          "type": "submit",
+          "item": "mysterious_stone",
+          "amount": 1,
+          "description": "Collect the mysterious stone"
+        },
+        {
+          "id": "report_to_john",
+          "type": "event",
+          "eventType": "NPC_TALKED",
+          "eventCondition": "npc = john",
+          "amount": 1,
+          "description": "Report back to John"
+        }
+      ],
+      "rewards": {
+        "xp": 1000,
+        "money": 2000,
+        "reputation": 100,
+        "items": [
+          "rare_ring"
+        ]
+      },
+      "unlocks": [
+        "defeat_boss"
+      ],
+      "repeatable": false
+    },
+    {
+      "id": "defeat_boss",
+      "title": "Defeat the Cave Boss",
+      "description": "The cave goblin chief is terrorizing the area. Defeat him to bring peace.",
+      "giver": "town_guard",
+      "category": "combat",
+      "difficulty": "hard",
+      "objectiveStructure": "defeat_boss AND collect_trophy",
+      "objectives": [
+        {
+          "id": "defeat_boss",
+          "type": "event",
+          "eventType": "ENEMY_KILLED",
+          "eventCondition": "enemy_id = goblin_chief AND location = cave_01",
+          "amount": 1,
+          "description": "Defeat the Goblin Chief in the cave"
+        },
+        {
+          "id": "collect_trophy",
+          "type": "submit",
+          "item": "goblin_chief_crown",
+          "amount": 1,
+          "description": "Collect the chief's crown as proof"
+        }
+      ],
+      "rewards": {
+        "xp": 2500,
+        "money": 5000,
+        "reputation": 250,
+        "items": [
+          "legendary_sword"
+        ]
+      },
+      "unlocks": [],
+      "repeatable": false
+    },
+    {
+      "id": "hunting_practice",
+      "title": "Hunting Practice",
+      "description": "Practice your hunting skills by shooting deer with headshots",
+      "giver": "hunter",
+      "category": "training",
+      "difficulty": "medium",
+      "objectiveStructure": "headshot_deer",
+      "objectives": [
+        {
+          "id": "headshot_deer",
+          "type": "event",
+          "eventType": "ENEMY_HIT",
+          "eventCondition": "bodypart = head AND target = deer",
+          "amount": 5,
+          "description": "Kill 5 deer with headshots"
+        }
+      ],
+      "rewards": {
+        "xp": 300,
+        "money": 500,
+        "reputation": 25,
+        "items": []
+      },
+      "unlocks": [],
+      "repeatable": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "quest-designer",
+  "version": "1.0.0",
+  "description": "Web-based NPC and quest graph designer",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter quest-designer-backend dev\" \"pnpm --filter quest-designer-frontend dev\"",
+    "web": "pnpm --filter quest-designer-frontend dev",
+    "serve": "pnpm --filter quest-designer-backend dev",
+    "build": "pnpm --filter quest-designer-backend build && pnpm --filter quest-designer-frontend build",
+    "start": "pnpm --filter quest-designer-backend start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
