@@ -235,27 +235,62 @@ export default function QuestEditor() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Unlocks</label>
-                <input
-                  value={(quest.unlocks || []).join(', ')}
-                  onChange={(e) => updateQuest(quest.id, { unlocks: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                  placeholder="quest1, quest2"
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded"
-                />
-              </div>
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Unlocks</label>
+              <input
+                value={(quest.unlocks || []).join(', ')}
+                onChange={(e) => updateQuest(quest.id, { unlocks: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                placeholder="quest1, quest2"
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Repeatable</label>
-                <select
-                  value={quest.repeatable ? 'true' : 'false'}
-                  onChange={(e) => updateQuest(quest.id, { repeatable: e.target.value === 'true' })}
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+            {/* Actions Section */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">
+                Actions on Complete ({(quest.actions || []).length})
+              </label>
+              <div className="text-xs text-slate-500 mb-2">
+                Commands executed when quest is completed (like NPC actions)
+              </div>
+              <div className="space-y-2">
+                {(quest.actions || []).map((action: string, idx: number) => (
+                  <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
+                    <div className="flex gap-2">
+                      <input
+                        value={action}
+                        onChange={(e) => {
+                          const newActions = [...(quest.actions || [])]
+                          newActions[idx] = e.target.value
+                          updateQuest(quest.id, { actions: newActions })
+                        }}
+                        placeholder="module.action key=value"
+                        className="flex-1 px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          const newActions = (quest.actions || []).filter((_: any, i: number) => i !== idx)
+                          updateQuest(quest.id, { actions: newActions })
+                        }}
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="text-xs text-slate-500 pl-2">
+                      Example: var.set key=quest_completed value=true
+                    </div>
+                  </div>
+                ))}
+                <button
+                  onClick={() => {
+                    const newActions = [...(quest.actions || []), 'var.set key=example value=true']
+                    updateQuest(quest.id, { actions: newActions })
+                  }}
+                  className="w-full px-3 py-1 bg-green-600 hover:bg-green-700 text-sm rounded"
                 >
-                  <option value="false">No</option>
-                  <option value="true">Yes</option>
-                </select>
+                  + Add Action
+                </button>
               </div>
             </div>
 

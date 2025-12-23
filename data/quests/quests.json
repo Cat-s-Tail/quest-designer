@@ -48,7 +48,11 @@
       "unlocks": [
         "investigate_cave"
       ],
-      "repeatable": false
+      "actions": [
+        "var.set key=john_reputation value=friendly",
+        "var.add key=completed_quests value=1",
+        "event.emit type=QUEST_MILESTONE quest=gather_supplies milestone=first_completion"
+      ]
     },
     {
       "id": "investigate_cave",
@@ -102,7 +106,11 @@
       "unlocks": [
         "defeat_boss"
       ],
-      "repeatable": false
+      "actions": [
+        "var.set key=cave_explored value=true",
+        "mission.unlock quest=secret_cave_treasure",
+        "event.emit type=CAVE_CLEARED location=cave_01"
+      ]
     },
     {
       "id": "defeat_boss",
@@ -137,8 +145,7 @@
           "legendary_sword"
         ]
       },
-      "unlocks": [],
-      "repeatable": false
+      "unlocks": []
     },
     {
       "id": "hunting_practice",
@@ -164,8 +171,7 @@
         "reputation": 25,
         "items": []
       },
-      "unlocks": [],
-      "repeatable": true
+      "unlocks": []
     }
   ]
 }

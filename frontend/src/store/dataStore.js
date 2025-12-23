@@ -202,8 +202,7 @@ export const useDataStore = create(
           objectiveStructure: '',
           objectives: [],
           rewards: { xp: 0, money: 0, reputation: 0, items: [] },
-          unlocks: [],
-          repeatable: false
+          unlocks: []
         }
 
         data.quests.push(newQuest)

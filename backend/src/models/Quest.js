@@ -92,10 +92,9 @@ const QuestItemSchema = new mongoose.Schema({
   unlocks: [{
     type: String
   }],
-  repeatable: {
-    type: Boolean,
-    default: false
-  }
+  actions: [{
+    type: String
+  }]
 }, { _id: false })
 
 // This represents a file containing multiple Quests
