@@ -4,7 +4,20 @@ import UploadPanel from '../components/UploadPanel'
 
 export default function Home() {
   const [showUpload, setShowUpload] = useState(false)
-  const { currentProject, setProject } = useDataStore()
+  const { currentProject, pendingProject, setProject, applyProject, cancelProjectChange } = useDataStore()
+  const [isApplying, setIsApplying] = useState(false)
+
+  const displayProject = pendingProject !== null ? pendingProject : currentProject
+  const hasChanges = pendingProject !== null && pendingProject !== currentProject
+
+  const handleApply = async () => {
+    setIsApplying(true)
+    try {
+      await applyProject()
+    } finally {
+      setIsApplying(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -17,11 +30,28 @@ export default function Home() {
               <label className="text-sm text-slate-400">Current Project:</label>
               <input
                 type="text"
-                value={currentProject}
+                value={displayProject}
                 onChange={(e) => setProject(e.target.value)}
                 placeholder="default"
                 className="px-3 py-2 bg-slate-800 text-white rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
               />
+              {hasChanges && (
+                <>
+                  <button
+                    onClick={handleApply}
+                    disabled={isApplying}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 text-white font-semibold rounded transition"
+                  >
+                    {isApplying ? 'Applying...' : 'Apply'}
+                  </button>
+                  <button
+                    onClick={cancelProjectChange}
+                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <button

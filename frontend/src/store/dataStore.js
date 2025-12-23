@@ -4,6 +4,21 @@ import axios from 'axios'
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api`
 
+// Helper to get current project from localStorage
+const getCurrentProject = () => {
+  if (typeof window === 'undefined') return 'default'
+  try {
+    const stored = localStorage.getItem('quest-designer-storage')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return parsed.state?.currentProject || 'default'
+    }
+  } catch (e) {
+    console.error('Error reading project from localStorage:', e)
+  }
+  return 'default'
+}
+
 export const useDataStore = create(
   persist(
     (set, get) => ({
@@ -14,17 +29,43 @@ export const useDataStore = create(
       currentData: null,
       loading: false,
       error: null,
+      pendingProject: null, // Track unsaved project changes
 
       // Project operations
       setProject: (project) => {
-        set({ currentProject: project, currentFile: null, currentData: null })
+        // Only update pendingProject, don't change currentProject yet
+        set({ pendingProject: project })
+      },
+
+      // Apply project change and reload files
+      applyProject: async () => {
+        const pendingProject = get().pendingProject
+        if (pendingProject === null) return // No changes to apply
+        
+        set({ 
+          currentProject: pendingProject, 
+          pendingProject: null,
+          currentFile: null, 
+          currentData: null 
+        })
+        
+        // Reload files with new project
+        await get().loadFiles()
+      },
+
+      // Cancel pending project changes
+      cancelProjectChange: () => {
+        set({ pendingProject: null })
       },
 
       // File operations
       loadFiles: async () => {
         set({ loading: true, error: null })
         try {
-          const response = await axios.get(`${API_BASE}/files/files`)
+          const project = getCurrentProject()
+          const response = await axios.get(`${API_BASE}/files/files`, {
+            params: { project }
+          })
           set({ files: response.data })
         } catch (error) {
           set({ error: error.message })
@@ -36,8 +77,9 @@ export const useDataStore = create(
       loadFile: async (filePath) => {
         set({ loading: true, error: null })
         try {
+          const project = getCurrentProject()
           const response = await axios.get(`${API_BASE}/files/file`, {
-            params: { path: filePath }
+            params: { path: filePath, project }
           })
           set({ currentFile: filePath, currentData: response.data })
         } catch (error) {
@@ -50,7 +92,7 @@ export const useDataStore = create(
       saveFile: async (filePath, content) => {
         set({ loading: true, error: null })
         try {
-          const project = get().currentProject
+          const project = getCurrentProject()
           const response = await axios.post(`${API_BASE}/files/file`, {
             path: filePath,
             content
@@ -70,7 +112,7 @@ export const useDataStore = create(
       createFile: async (filePath, template = 'npcs') => {
         set({ loading: true, error: null })
         try {
-          const project = get().currentProject
+          const project = getCurrentProject()
           const response = await axios.post(`${API_BASE}/files/create`, {
             path: filePath,
             template
@@ -90,7 +132,7 @@ export const useDataStore = create(
       deleteFile: async (filePath) => {
         set({ loading: true, error: null })
         try {
-          const project = get().currentProject
+          const project = getCurrentProject()
           await axios.delete(`${API_BASE}/files/file`, {
             params: { path: filePath, project }
           })
