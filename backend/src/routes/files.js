@@ -1,6 +1,6 @@
 import express from 'express'
 import NPCFile from '../models/NPC.js'
-import QuestFile from '../models/Quest.js'
+import MissionFile from '../models/Quest.js'  // Note: Model file name unchanged for now
 
 const router = express.Router()
 
@@ -10,11 +10,11 @@ router.get('/files', async (req, res) => {
     const project = req.query.project || 'default'
     
     const npcFiles = await NPCFile.find({ project }).select('filename').lean()
-    const questFiles = await QuestFile.find({ project }).select('filename').lean()
+    const missionFiles = await MissionFile.find({ project }).select('filename').lean()
     
     const files = {
       npcs: npcFiles.map(f => f.filename),
-      quests: questFiles.map(f => f.filename),
+      missions: missionFiles.map(f => f.filename),
       other: []
     }
 
@@ -34,7 +34,7 @@ router.get('/file', async (req, res) => {
       return res.status(400).json({ error: 'path query parameter is required' })
     }
 
-    // Determine if it's an NPC or Quest file
+    // Determine if it's an NPC or Mission file
     let content
     if (filePath.includes('npc')) {
       const file = await NPCFile.findOne({ project, filename: filePath }).select('-_id -__v -createdAt -updatedAt').lean()
@@ -42,12 +42,12 @@ router.get('/file', async (req, res) => {
         return res.status(404).json({ error: 'File not found' })
       }
       content = { npcs: file.npcs }
-    } else if (filePath.includes('quest')) {
-      const file = await QuestFile.findOne({ project, filename: filePath }).select('-_id -__v -createdAt -updatedAt').lean()
+    } else if (filePath.includes('mission') || filePath.includes('quest')) {
+      const file = await MissionFile.findOne({ project, filename: filePath }).select('-_id -__v -createdAt -updatedAt').lean()
       if (!file) {
         return res.status(404).json({ error: 'File not found' })
       }
-      content = { quests: file.quests }
+      content = { missions: file.missions || [] }
     } else {
       return res.status(400).json({ error: 'Cannot determine file type from path' })
     }
@@ -68,17 +68,21 @@ router.post('/file', async (req, res) => {
       return res.status(400).json({ error: 'path and content are required' })
     }
 
-    // Determine if it's an NPC or Quest file and save
+    // Determine if it's an NPC or Mission file and save
     if (filePath.includes('npc') && content.npcs) {
       await NPCFile.findOneAndUpdate(
         { project, filename: filePath },
         { project, filename: filePath, npcs: content.npcs },
         { upsert: true, new: true }
       )
-    } else if (filePath.includes('quest') && content.quests) {
-      await QuestFile.findOneAndUpdate(
+    } else if (filePath.includes('mission') || filePath.includes('quest')) {
+      const missionData = content.missions
+      if (!missionData) {
+        return res.status(400).json({ error: 'Invalid content format: missing missions array' })
+      }
+      await MissionFile.findOneAndUpdate(
         { project, filename: filePath },
-        { project, filename: filePath, quests: content.quests },
+        { project, filename: filePath, missions: missionData },
         { upsert: true, new: true }
       )
     } else {
@@ -108,15 +112,15 @@ router.post('/create', async (req, res) => {
         return res.status(409).json({ error: 'File already exists' })
       }
       await NPCFile.create({ project, filename: filePath, npcs: [] })
-    } else if (template === 'quests') {
-      const existing = await QuestFile.findOne({ project, filename: filePath })
+    } else if (template === 'missions') {
+      const existing = await MissionFile.findOne({ project, filename: filePath })
       if (existing) {
         return res.status(409).json({ error: 'File already exists' })
       }
-      await QuestFile.create({ project, filename: filePath, quests: [] })
+      await MissionFile.create({ project, filename: filePath, missions: [] })
     }
 
-    const content = template === 'npcs' ? { npcs: [] } : { quests: [] }
+    const content = template === 'npcs' ? { npcs: [] } : { missions: [] }
     res.json({ success: true, path: filePath, content })
   } catch (error) {
     res.status(500).json({ error: `Failed to create file: ${error.message}` })
@@ -133,11 +137,11 @@ router.delete('/file', async (req, res) => {
       return res.status(400).json({ error: 'path query parameter is required' })
     }
 
-    // Determine if it's an NPC or Quest file and delete
+    // Determine if it's an NPC or Mission file and delete
     if (filePath.includes('npc')) {
       await NPCFile.deleteOne({ project, filename: filePath })
-    } else if (filePath.includes('quest')) {
-      await QuestFile.deleteOne({ project, filename: filePath })
+    } else if (filePath.includes('mission') || filePath.includes('quest')) {
+      await MissionFile.deleteOne({ project, filename: filePath })
     } else {
       return res.status(400).json({ error: 'Cannot determine file type from path' })
     }
@@ -153,14 +157,14 @@ router.post('/clear-project', async (req, res) => {
   try {
     const project = req.query.project || req.body.project || 'default'
 
-    // Delete all NPCs and Quests for this project
+    // Delete all NPCs and Missions for this project
     const npcResult = await NPCFile.deleteMany({ project })
-    const questResult = await QuestFile.deleteMany({ project })
+    const missionResult = await MissionFile.deleteMany({ project })
 
     res.json({ 
       success: true, 
       deletedNPCs: npcResult.deletedCount,
-      deletedQuests: questResult.deletedCount,
+      deletedMissions: missionResult.deletedCount,
       project 
     })
   } catch (error) {

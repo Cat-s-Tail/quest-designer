@@ -160,24 +160,15 @@ export const useDataStore = create(
         }
       },
 
-      updateQuest: (questId, updates) => {
+      updateMission: (missionId, updates) => {
         const data = get().currentData
-        if (!data) return
-        
-        // Support both 'quests' and 'missions' keys
-        const key = data.missions ? 'missions' : 'quests'
-        if (!data[key]) return
+        if (!data || !data.missions) return
 
-        const questIndex = data[key].findIndex(q => q.id === questId)
-        if (questIndex >= 0) {
-          data[key][questIndex] = { ...data[key][questIndex], ...updates }
+        const missionIndex = data.missions.findIndex(m => m.id === missionId)
+        if (missionIndex >= 0) {
+          data.missions[missionIndex] = { ...data.missions[missionIndex], ...updates }
           set({ currentData: { ...data } })
         }
-      },
-
-      updateMission: (missionId, updates) => {
-        // Alias for updateQuest to support new mission terminology
-        return get().updateQuest(missionId, updates)
       },
 
       addNPC: () => {
@@ -199,15 +190,11 @@ export const useDataStore = create(
         return newNPC
       },
 
-      addQuest: () => {
+      addMission: () => {
         const data = get().currentData
-        if (!data) return
-        
-        // Support both 'quests' and 'missions' keys
-        const key = data.missions ? 'missions' : 'quests'
-        if (!data[key]) data[key] = []
+        if (!data || !data.missions) data.missions = []
 
-        const newQuest = {
+        const newMission = {
           id: `mission_${Date.now()}`,
           name: 'New Mission',
           description: '',
@@ -218,39 +205,25 @@ export const useDataStore = create(
           position: { x: 0, y: 0 }
         }
 
-        data[key].push(newQuest)
+        data.missions.push(newMission)
         set({ currentData: { ...data } })
-        return newQuest
-      },
-
-      addMission: () => {
-        // Alias for addQuest to support new mission terminology
-        return get().addQuest()
-      },
-
-      deleteQuest: (questId) => {
-        const data = get().currentData
-        if (!data) return
-        
-        // Support both 'quests' and 'missions' keys
-        const key = data.missions ? 'missions' : 'quests'
-        if (!data[key]) return
-
-        // Remove the quest
-        const updatedQuests = data[key].filter(q => q.id !== questId)
-        
-        // Clean up references in other quests' unlocks
-        const cleanedQuests = updatedQuests.map(q => ({
-          ...q,
-          unlocks: (q.unlocks || []).filter(id => id !== questId)
-        }))
-
-        set({ currentData: { ...data, [key]: cleanedQuests } })
+        return newMission
       },
 
       deleteMission: (missionId) => {
-        // Alias for deleteQuest to support new mission terminology
-        return get().deleteQuest(missionId)
+        const data = get().currentData
+        if (!data || !data.missions) return
+
+        // Remove the mission
+        const updatedMissions = data.missions.filter(m => m.id !== missionId)
+        
+        // Clean up references in other missions' unlocks
+        const cleanedMissions = updatedMissions.map(m => ({
+          ...m,
+          unlocks: (m.unlocks || []).filter(id => id !== missionId)
+        }))
+
+        set({ currentData: { ...data, missions: cleanedMissions } })
       },
 
       // Helper to generate GUID for node IDs

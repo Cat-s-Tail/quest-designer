@@ -100,8 +100,8 @@ export default function Home() {
           </a>
 
           <a href="/editor/quests" className="p-8 bg-gradient-to-br from-purple-600 to-purple-700 rounded-lg hover:from-purple-500 hover:to-purple-600 transition transform hover:scale-105">
-            <h2 className="text-3xl font-bold text-white mb-2">Quest Editor</h2>
-            <p className="text-slate-200">Design quest chains and objectives with AND/OR logic</p>
+            <h2 className="text-3xl font-bold text-white mb-2">Mission Editor</h2>
+            <p className="text-slate-200">Design mission chains and objectives with AND/OR logic</p>
           </a>
         </div>
       </div>

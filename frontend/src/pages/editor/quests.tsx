@@ -12,8 +12,8 @@ export default function QuestsPage() {
   const displayProject = pendingProject !== null ? pendingProject : currentProject
   const hasChanges = pendingProject !== null && pendingProject !== currentProject
   
-  // Support both 'quests' and 'missions' keys for backward compatibility
-  const hasValidData = currentData && (currentData.quests || currentData.missions)
+  // Check if data has missions
+  const hasValidData = currentData && currentData.missions
 
   const handleApply = async () => {
     setIsApplying(true)
@@ -65,7 +65,7 @@ export default function QuestsPage() {
                 </svg>
                 Home
               </button>
-              <h1 className="text-3xl font-bold">Quest Editor</h1>
+              <h1 className="text-3xl font-bold">Mission Editor</h1>
             </div>
             <div className="flex gap-4 items-center">
               <div className="flex items-center gap-2">
@@ -103,15 +103,15 @@ export default function QuestsPage() {
               </button>
             </div>
           </div>
-          <FileSelector type="quests" />
+          <FileSelector type="missions" />
         </div>
 
         {/* Content */}
         <div className="p-6">
           {!currentFile ? (
-            <div className="text-slate-400">Select or create a quest file to start editing</div>
+            <div className="text-slate-400">Select or create a mission file to start editing</div>
           ) : !hasValidData ? (
-            <div className="text-slate-400">Selected file does not contain quest/mission data</div>
+            <div className="text-slate-400">Selected file does not contain mission data</div>
           ) : (
             <QuestEditor />
           )}

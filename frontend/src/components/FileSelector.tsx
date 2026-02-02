@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useDataStore } from '@/store/dataStore'
 
-export default function FileSelector({ type = 'npcs' }: { type?: 'npcs' | 'quests' }) {
+export default function FileSelector({ type = 'npcs' }: { type?: 'npcs' | 'missions' }) {
   const { files, currentFile, loadFile, createFile, deleteFile } = useDataStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newFileName, setNewFileName] = useState('')
@@ -19,6 +19,9 @@ export default function FileSelector({ type = 'npcs' }: { type?: 'npcs' | 'quest
     }
   }
 
+  const displayName = type === 'npcs' ? 'NPC' : 'Mission'
+  const displayNamePlural = type === 'npcs' ? 'NPCs' : 'Missions'
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -26,13 +29,13 @@ export default function FileSelector({ type = 'npcs' }: { type?: 'npcs' | 'quest
           onClick={() => setShowCreateModal(true)}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition"
         >
-          + New {type === 'npcs' ? 'NPC' : 'Quest'} File
+          + New {displayName} File
         </button>
       </div>
 
       <div>
         <h3 className="text-lg font-semibold mb-2 text-slate-300">
-          {type === 'npcs' ? 'NPCs' : 'Quests'}
+          {displayNamePlural}
         </h3>
         <div className="space-y-1">
           {files[type]?.length > 0 ? (

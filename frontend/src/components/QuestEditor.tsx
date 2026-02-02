@@ -10,8 +10,8 @@ export default function QuestEditor() {
   const [searchTerm, setSearchTerm] = useState('')
   const [clipboard, setClipboard] = useState<any>(null)
 
-  // Get missions from either 'missions' or 'quests' key for backward compatibility
-  const missions = currentData?.missions || currentData?.quests || []
+  // Get missions from data
+  const missions = currentData?.missions || []
   const mission = selectedMission ? missions.find((m: any) => m.id === selectedMission) : null
 
   // Search functionality
@@ -37,8 +37,7 @@ export default function QuestEditor() {
           id: generateGUID(),
           name: `${clipboard.name || clipboard.title} (Copy)`,
         }
-        const key = currentData?.missions ? 'missions' : 'quests'
-        const updated = { ...currentData, [key]: [...missions, newMission] }
+        const updated = { ...currentData, missions: [...missions, newMission] }
         saveFile(currentFile, updated)
         setSelectedMission(newMission.id)
         setToast({ message: 'Mission pasted', type: 'success' })
