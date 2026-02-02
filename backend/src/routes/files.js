@@ -148,4 +148,24 @@ router.delete('/file', async (req, res) => {
   }
 })
 
+// Clear all data for a project
+router.post('/clear-project', async (req, res) => {
+  try {
+    const project = req.query.project || req.body.project || 'default'
+
+    // Delete all NPCs and Quests for this project
+    const npcResult = await NPCFile.deleteMany({ project })
+    const questResult = await QuestFile.deleteMany({ project })
+
+    res.json({ 
+      success: true, 
+      deletedNPCs: npcResult.deletedCount,
+      deletedQuests: questResult.deletedCount,
+      project 
+    })
+  } catch (error) {
+    res.status(500).json({ error: `Failed to clear project data: ${error.message}` })
+  }
+})
+
 export default router

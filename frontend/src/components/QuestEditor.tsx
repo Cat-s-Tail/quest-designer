@@ -1,27 +1,63 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/dataStore'
-import { ConditionParser } from '@/lib/ConditionParser'
-import QuestTree from './QuestTree'
-import HighlightedCondition from './HighlightedCondition'
 import Toast from './Toast'
 
 export default function QuestEditor() {
-  const { currentFile, currentData, saveFile, updateQuest, addQuest, deleteQuest } = useDataStore()
-  const [selectedQuest, setSelectedQuest] = useState<string | null>(null)
-  const [selectedObjective, setSelectedObjective] = useState<string | null>(null)
+  const { currentFile, currentData, saveFile, updateMission, addMission, deleteMission, generateGUID } = useDataStore()
+  const [selectedMission, setSelectedMission] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [parseError, setParseError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [clipboard, setClipboard] = useState<any>(null)
 
-  const handleAddQuest = () => {
-    const quest = addQuest()
-    setSelectedQuest(quest.id)
+  // Get missions from either 'missions' or 'quests' key for backward compatibility
+  const missions = currentData?.missions || currentData?.quests || []
+  const mission = selectedMission ? missions.find((m: any) => m.id === selectedMission) : null
+
+  // Search functionality
+  const filteredMissions = missions.filter((m: any) => 
+    m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.name || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (m.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Keyboard shortcuts for copy/paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && mission) {
+        e.preventDefault()
+        setClipboard({ ...mission })
+        setToast({ message: 'Mission copied to clipboard', type: 'success' })
+        setTimeout(() => setToast(null), 2000)
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
+        e.preventDefault()
+        const newMission = {
+          ...clipboard,
+          id: generateGUID(),
+          name: `${clipboard.name || clipboard.title} (Copy)`,
+        }
+        const key = currentData?.missions ? 'missions' : 'quests'
+        const updated = { ...currentData, [key]: [...missions, newMission] }
+        saveFile(currentFile, updated)
+        setSelectedMission(newMission.id)
+        setToast({ message: 'Mission pasted', type: 'success' })
+        setTimeout(() => setToast(null), 2000)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mission, clipboard, currentData, currentFile, missions, generateGUID, saveFile])
+
+  const handleAddMission = () => {
+    const newMission = addMission()
+    setSelectedMission(newMission.id)
   }
 
-  const handleDeleteQuest = (questId: string) => {
-    if (confirm(`Delete quest "${quest?.title || questId}"? This will also remove it from other quests' unlock lists.`)) {
-      deleteQuest(questId)
-      setSelectedQuest(null)
+  const handleDeleteMission = (missionId: string) => {
+    if (confirm(`Delete mission "${mission?.name || mission?.title || missionId}"?`)) {
+      deleteMission(missionId)
+      setSelectedMission(null)
     }
   }
 
@@ -37,465 +73,341 @@ export default function QuestEditor() {
     }
   }
 
-  const handleStructureChange = (questId: string, value: string) => {
-    const parser = new ConditionParser(value)
-    const tree = parser.parse()
-
-    if (tree || !value) {
-      setParseError(null)
-      updateQuest(questId, { objectiveStructure: value })
-    } else {
-      setParseError('Invalid condition structure')
-    }
-  }
-
-  const handleAddObjective = () => {
-    const newObjective = {
-      id: `obj_${Date.now()}`,
-      type: 'event',
-      eventType: '',
-      eventCondition: '',
-      description: 'New Objective',
-      amount: 1,
-    }
-    const updatedObjectives = [...(quest.objectives || []), newObjective]
-    updateQuest(quest.id, { objectives: updatedObjectives })
-    setSelectedObjective(newObjective.id)
-  }
-
-  const handleUpdateObjective = (updates: any) => {
-    const updatedObjectives = (quest.objectives || []).map((obj: any) =>
-      obj.id === selectedObjective ? { ...obj, ...updates } : obj
-    )
+  const addObjective = () => {
+    if (!mission || !mission.conditions) return
     
-    // If ID changed, update the objectiveStructure references
-    if (updates.id && updates.id !== selectedObjective) {
-      let newStructure = quest.objectiveStructure || ''
-      const regex = new RegExp(`\\b${selectedObjective}\\b`, 'g')
-      newStructure = newStructure.replace(regex, updates.id)
-      updateQuest(quest.id, { objectives: updatedObjectives, objectiveStructure: newStructure })
-      setSelectedObjective(updates.id) // Update selected objective to new ID
-    } else {
-      updateQuest(quest.id, { objectives: updatedObjectives })
+    const newObjective = {
+      objective_id: generateGUID(),
+      related_event: 'CUSTOM_EVENT',
+      validate: 'true',
+      count: 0,
+      requirement: 1,
+      description: 'New Objective'
     }
+    
+    const conditions = mission.conditions
+    if (!conditions.and) conditions.and = []
+    conditions.and.push(newObjective)
+    
+    updateMission(mission.id, { conditions })
   }
 
-  const handleDeleteObjective = (objId: string) => {
-    const updatedObjectives = (quest.objectives || []).filter((obj: any) => obj.id !== objId)
-    updateQuest(quest.id, { objectives: updatedObjectives })
-    if (selectedObjective === objId) {
-      setSelectedObjective(null)
-    }
+  const updateObjective = (index: number, updates: any) => {
+    if (!mission || !mission.conditions?.and) return
+    
+    const newConditions = { ...mission.conditions }
+    newConditions.and[index] = { ...newConditions.and[index], ...updates }
+    updateMission(mission.id, { conditions: newConditions })
   }
 
-  const quest = selectedQuest ? currentData.quests.find((q: any) => q.id === selectedQuest) : null
+  const deleteObjective = (index: number) => {
+    if (!mission || !mission.conditions?.and) return
+    
+    const newConditions = { ...mission.conditions }
+    newConditions.and = newConditions.and.filter((_: any, i: number) => i !== index)
+    updateMission(mission.id, { conditions: newConditions })
+  }
+
+  const addEventScript = () => {
+    if (!mission) return
+    const scripts = mission.onEvent || []
+    updateMission(mission.id, { onEvent: [...scripts, '@mission_evaluate_standard'] })
+  }
+
+  const updateEventScript = (index: number, value: string) => {
+    if (!mission) return
+    const scripts = [...(mission.onEvent || [])]
+    scripts[index] = value
+    updateMission(mission.id, { onEvent: scripts })
+  }
+
+  const deleteEventScript = (index: number) => {
+    if (!mission) return
+    const scripts = (mission.onEvent || []).filter((_: any, i: number) => i !== index)
+    updateMission(mission.id, { onEvent: scripts })
+  }
 
   return (
     <div className="space-y-4">
-      {/* Toast Notification */}
+      {/* Toast */}
       {toast && (
         <div className="fixed top-4 right-4 z-50">
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
+          <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         </div>
       )}
 
-      {/* Header with Save Button */}
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="font-bold text-lg">Quests</h3>
+        <div className="flex items-center gap-4">
+          <h3 className="font-bold text-lg">Missions</h3>
+          <input
+            type="text"
+            placeholder="Search missions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 bg-slate-700 text-white rounded text-sm w-64"
+          />
+          {clipboard && (
+            <span className="text-xs text-slate-400">
+              📋 Mission in clipboard (Ctrl+V to paste)
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={handleSave}
-            disabled={isSaving || !!parseError}
+            disabled={isSaving}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 rounded transition"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
           <button
-            onClick={handleAddQuest}
+            onClick={handleAddMission}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded transition"
           >
-            + New Quest
+            + New Mission
           </button>
         </div>
       </div>
 
-      {/* Tree View and Detail Editor - Side by Side */}
+      {/* Mission List and Editor */}
       <div className="flex gap-4">
-        {/* Tree View - Left (2/3 width) */}
-        <div className="flex-[2] bg-slate-800 rounded-lg overflow-hidden" style={{ height: '600px' }}>
-          <QuestTree 
-            quests={currentData.quests || []} 
-            selectedQuest={selectedQuest} 
-            onSelectQuest={setSelectedQuest}
-            onAddQuest={() => {
-              const newQuestWithDefaults = addQuest()
-              if (newQuestWithDefaults) {
-                setSelectedQuest(newQuestWithDefaults.id)
-              }
-            }}
-            onRelink={(sourceId: string, targetId: string, isBreaking?: boolean) => {
-              const quest = currentData.quests.find((q: any) => q.id === sourceId)
-              if (quest) {
-                if (isBreaking) {
-                  // Remove the unlock
-                  if (quest.unlocks) {
-                    quest.unlocks = quest.unlocks.filter((id: string) => id !== targetId)
-                    updateQuest(sourceId, { unlocks: quest.unlocks })
-                  }
-                } else {
-                  // Add the unlock
-                  if (!quest.unlocks) quest.unlocks = []
-                  if (!quest.unlocks.includes(targetId)) {
-                    quest.unlocks.push(targetId)
-                    updateQuest(sourceId, { unlocks: quest.unlocks })
-                  }
-                }
-              }
-            }}
-          />
+        {/* Mission List - Left */}
+        <div className="flex-[1] bg-slate-800 rounded-lg p-4 space-y-2" style={{ height: '600px', overflowY: 'auto' }}>
+          <h4 className="font-bold text-slate-300 mb-2">Missions ({filteredMissions.length})</h4>
+          {filteredMissions.map((m: any) => (
+            <div
+              key={m.id}
+              onClick={() => setSelectedMission(m.id)}
+              className={`p-3 rounded cursor-pointer transition ${
+                selectedMission === m.id ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'
+              }`}
+            >
+              <div className="font-bold text-sm">{m.name || m.title}</div>
+              <div className="text-xs text-slate-400">{m.category}</div>
+              <div className="text-xs text-slate-500">{m.id}</div>
+            </div>
+          ))}
         </div>
 
-        {/* Detail Editor - Right (1/3 width) */}
-        {quest && (
-          <div className="flex-[1] bg-slate-800 rounded-lg p-4 space-y-4 overflow-y-auto" style={{ height: '600px' }}>
-            <div className="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
-              <h4 className="font-bold text-slate-300">Edit Quest</h4>
+        {/* Detail Editor - Right */}
+        {mission && (
+          <div className="flex-[2] bg-slate-800 rounded-lg p-4 space-y-4 overflow-y-auto" style={{ height: '600px' }}>
+            <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+              <h4 className="font-bold text-slate-300">Edit Mission</h4>
               <button
-                onClick={() => handleDeleteQuest(quest.id)}
+                onClick={() => handleDeleteMission(mission.id)}
                 className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
               >
-                Delete Quest
+                Delete Mission
               </button>
             </div>
-            
+
+            {/* ID */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Title</label>
+              <label className="block text-sm text-slate-400 mb-1">ID (Read-only)</label>
               <input
-                value={quest.title || ''}
-                onChange={(e) => updateQuest(quest.id, { title: e.target.value })}
+                value={mission.id}
+                disabled
+                className="w-full px-3 py-2 bg-slate-600 text-slate-400 rounded text-sm font-mono cursor-not-allowed"
+              />
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Name</label>
+              <input
+                value={mission.name || mission.title || ''}
+                onChange={(e) => updateMission(mission.id, { name: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded"
               />
             </div>
 
+            {/* Description */}
             <div>
               <label className="block text-sm text-slate-400 mb-1">Description</label>
               <textarea
-                value={quest.description || ''}
-                onChange={(e) => updateQuest(quest.id, { description: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded h-16"
+                value={mission.description || ''}
+                onChange={(e) => updateMission(mission.id, { description: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded h-20"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Giver</label>
-                <input
-                  value={quest.giver || ''}
-                  onChange={(e) => updateQuest(quest.id, { giver: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-slate-400 mb-1">Difficulty</label>
-                <select
-                  value={quest.difficulty || 'easy'}
-                  onChange={(e) => updateQuest(quest.id, { difficulty: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-700 text-white rounded"
-                >
-                  <option>easy</option>
-                  <option>medium</option>
-                  <option>hard</option>
-                </select>
-              </div>
-            </div>
-
+            {/* Category */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">
-                Objective Structure (AND/OR)
-              </label>
-              <textarea
-                value={quest.objectiveStructure || ''}
-                onChange={(e) => handleStructureChange(quest.id, e.target.value)}
-                placeholder="e.g., obj1 AND obj2 OR (obj3 AND obj4)"
-                className={`w-full px-3 py-2 bg-slate-700 text-white rounded h-12 font-mono ${
-                  parseError ? 'border-2 border-red-500' : ''
-                }`}
-              />
-              {parseError && <div className="text-red-500 text-sm mt-1">{parseError}</div>}
-              {quest.objectiveStructure && (
-                <div className="mt-2 p-2 bg-slate-700 rounded">
-                  <div className="text-xs text-slate-500 mb-1">Preview:</div>
-                  <HighlightedCondition text={quest.objectiveStructure} />
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm text-slate-400 mb-1">Unlocks</label>
+              <label className="block text-sm text-slate-400 mb-1">Category</label>
               <input
-                value={(quest.unlocks || []).join(', ')}
-                onChange={(e) => updateQuest(quest.id, { unlocks: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                placeholder="quest1, quest2"
+                value={mission.category || ''}
+                onChange={(e) => updateMission(mission.id, { category: e.target.value })}
+                placeholder="e.g., combat, gathering, story"
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded"
               />
             </div>
 
-            {/* Actions Section */}
+            {/* Can Unlock - Lua Expression */}
             <div>
               <label className="block text-sm text-slate-400 mb-1">
-                Actions on Complete ({(quest.actions || []).length})
+                Can Unlock (Lua Expression)
+              </label>
+              <textarea
+                value={mission.canUnlock || 'true'}
+                onChange={(e) => updateMission(mission.id, { canUnlock: e.target.value })}
+                placeholder="var.level >= 5"
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm h-16"
+              />
+              <div className="text-xs text-slate-500 mt-1">
+                Lua expression that returns true/false to determine if mission can be unlocked
+              </div>
+            </div>
+
+            {/* Conditions - JSON Logical Expression */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">
+                Conditions / Objectives ({mission.conditions?.and?.length || 0})
               </label>
               <div className="text-xs text-slate-500 mb-2">
-                Commands executed when quest is completed (like NPC actions)
+                Logical expression defining mission objectives (and/or/not structure)
               </div>
-              <div className="space-y-2">
-                {(quest.actions || []).map((action: string, idx: number) => (
-                  <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
-                    <div className="flex gap-2">
-                      <input
-                        value={action}
-                        onChange={(e) => {
-                          const newActions = [...(quest.actions || [])]
-                          newActions[idx] = e.target.value
-                          updateQuest(quest.id, { actions: newActions })
-                        }}
-                        placeholder="module.action key=value"
-                        className="flex-1 px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
-                      />
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {(mission.conditions?.and || []).map((obj: any, idx: number) => (
+                  <div key={idx} className="bg-slate-700 rounded p-3 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-slate-300">Objective {idx + 1}</span>
                       <button
-                        onClick={() => {
-                          const newActions = (quest.actions || []).filter((_: any, i: number) => i !== idx)
-                          updateQuest(quest.id, { actions: newActions })
-                        }}
-                        className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                        onClick={() => deleteObjective(idx)}
+                        className="text-red-400 hover:text-red-300 text-xs"
                       >
-                        ✕
+                        ✕ Delete
                       </button>
                     </div>
-                    <div className="text-xs text-slate-500 pl-2">
-                      Example: var.set key=quest_completed value=true
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Objective ID</label>
+                        <input
+                          value={obj.objective_id || ''}
+                          onChange={(e) => updateObjective(idx, { objective_id: e.target.value })}
+                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Related Event</label>
+                        <input
+                          value={obj.related_event || ''}
+                          onChange={(e) => updateObjective(idx, { related_event: e.target.value })}
+                          placeholder="ENEMY_KILLED"
+                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Validate (Lua)</label>
+                      <textarea
+                        value={obj.validate || 'true'}
+                        onChange={(e) => updateObjective(idx, { validate: e.target.value })}
+                        placeholder="event.enemyType == 'goblin'"
+                        className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
+                        rows={2}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1">Description</label>
+                      <input
+                        value={obj.description || ''}
+                        onChange={(e) => updateObjective(idx, { description: e.target.value })}
+                        className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Count</label>
+                        <input
+                          type="number"
+                          value={obj.count || 0}
+                          onChange={(e) => updateObjective(idx, { count: parseInt(e.target.value) })}
+                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Requirement</label>
+                        <input
+                          type="number"
+                          value={obj.requirement || 1}
+                          onChange={(e) => updateObjective(idx, { requirement: parseInt(e.target.value) })}
+                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">
+                          <input
+                            type="checkbox"
+                            checked={obj.reset_on_death || false}
+                            onChange={(e) => updateObjective(idx, { reset_on_death: e.target.checked })}
+                            className="mr-1"
+                          />
+                          Reset on Death
+                        </label>
+                      </div>
                     </div>
                   </div>
                 ))}
-                <button
-                  onClick={() => {
-                    const newActions = [...(quest.actions || []), 'var.set key=example value=true']
-                    updateQuest(quest.id, { actions: newActions })
-                  }}
-                  className="w-full px-3 py-1 bg-green-600 hover:bg-green-700 text-sm rounded"
-                >
-                  + Add Action
-                </button>
               </div>
+              <button
+                onClick={addObjective}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm mt-2"
+              >
+                + Add Objective
+              </button>
             </div>
 
+            {/* OnEvent Scripts */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Objectives ({quest.objectives?.length || 0})</label>
+              <label className="block text-sm text-slate-400 mb-1">
+                OnEvent Scripts ({mission.onEvent?.length || 0})
+              </label>
+              <div className="text-xs text-slate-500 mb-2">
+                Array of Lua scripts executed sequentially when events occur. Use @filename for references.
+              </div>
               <div className="space-y-2">
-                <div className="bg-slate-700 rounded p-2 max-h-40 overflow-y-auto space-y-1">
-                  {(quest.objectives || []).length > 0 ? (
-                    (quest.objectives || []).map((obj: any) => (
-                      <div
-                        key={obj.id}
-                        onClick={() => setSelectedObjective(obj.id)}
-                        className={`p-2 rounded cursor-pointer flex justify-between items-center ${
-                          selectedObjective === obj.id
-                            ? 'bg-blue-600'
-                            : 'bg-slate-600 hover:bg-slate-500'
-                        }`}
-                      >
-                        <span className="text-sm">{obj.description || obj.id}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteObjective(obj.id)
-                          }}
-                          className="text-red-400 hover:text-red-300 text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500 text-sm">No objectives</div>
-                  )}
-                </div>
+                {(mission.onEvent || []).map((script: string, idx: number) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      value={script}
+                      onChange={(e) => updateEventScript(idx, e.target.value)}
+                      placeholder="@mission_evaluate_standard"
+                      className="flex-1 px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm"
+                    />
+                    <button
+                      onClick={() => deleteEventScript(idx)}
+                      className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
                 <button
-                  onClick={handleAddObjective}
-                  className="w-full px-3 py-1 bg-green-600 hover:bg-green-700 text-sm rounded"
+                  onClick={addEventScript}
+                  className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
                 >
-                  + Add Objective
+                  + Add Script
                 </button>
               </div>
             </div>
 
-            {/* Objective Editor */}
-            {selectedObjective && (
-              <div className="border-t border-slate-700 pt-4 mt-4">
-                <h4 className="font-bold text-slate-300 mb-3">Edit Objective</h4>
-                {(() => {
-                  const obj = (quest.objectives || []).find((o: any) => o.id === selectedObjective)
-                  return obj ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs text-slate-500 mb-1">ID</label>
-                        <input
-                          value={obj.id}
-                          onChange={(e) => handleUpdateObjective({ id: e.target.value })}
-                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-slate-500 mb-1">Description</label>
-                        <input
-                          value={obj.description || ''}
-                          onChange={(e) => handleUpdateObjective({ description: e.target.value })}
-                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-slate-500 mb-1">Type</label>
-                        <select
-                          value={obj.type || 'event'}
-                          onChange={(e) => handleUpdateObjective({ type: e.target.value })}
-                          className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                        >
-                          <option value="event">Event</option>
-                          <option value="submit">Submit</option>
-                        </select>
-                      </div>
-
-                      {obj.type === 'event' && (
-                        <>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Event Type</label>
-                            <input
-                              value={obj.eventType || ''}
-                              onChange={(e) => handleUpdateObjective({ eventType: e.target.value })}
-                              placeholder="e.g., ENEMY_KILLED, ITEM_COLLECTED"
-                              className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                            />
-                            <div className="text-xs text-slate-400 mt-1">
-                              The event type that triggers this objective
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Event Condition</label>
-                            <textarea
-                              value={obj.eventCondition || ''}
-                              onChange={(e) => handleUpdateObjective({ eventCondition: e.target.value })}
-                              placeholder="enemy_id = goblin AND damage > 50"
-                              className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
-                              rows={2}
-                            />
-                            {obj.eventCondition && (
-                              <div className="text-xs mt-1">
-                                <HighlightedCondition text={obj.eventCondition} />
-                              </div>
-                            )}
-                            <div className="text-xs text-slate-400 mt-1">
-                              Conditions checked against event data properties
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Amount</label>
-                            <input
-                              type="number"
-                              value={obj.amount || 1}
-                              onChange={(e) => handleUpdateObjective({ amount: parseInt(e.target.value) })}
-                              className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {obj.type === 'submit' && (
-                        <>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Item Type or ID</label>
-                            <input
-                              value={obj.item || ''}
-                              onChange={(e) => handleUpdateObjective({ item: e.target.value })}
-                              placeholder="e.g., 'weapon' or 'item_sword_001'"
-                              className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-500 mb-1">Amount</label>
-                            <input
-                              type="number"
-                              value={obj.amount || 1}
-                              onChange={(e) => handleUpdateObjective({ amount: parseInt(e.target.value) })}
-                              className="w-full px-2 py-1 bg-slate-600 text-white rounded text-sm"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {/* Conditions Section */}
-                      <div>
-                        <label className="block text-xs text-slate-500 mb-1">
-                          Conditions (optional)
-                        </label>
-                        <div className="space-y-2">
-                          {(obj.conditions || []).map((cond: string, idx: number) => (
-                            <div key={idx} className="space-y-1 p-2 bg-slate-700 rounded">
-                              <div className="flex gap-2">
-                                <textarea
-                                  value={cond}
-                                  onChange={(e) => {
-                                    const newConditions = [...(obj.conditions || [])]
-                                    newConditions[idx] = e.target.value
-                                    handleUpdateObjective({ conditions: newConditions })
-                                  }}
-                                  placeholder="mission.example = completed AND var.level >= 5"
-                                  className="flex-1 px-2 py-1 bg-slate-600 text-white rounded text-sm font-mono"
-                                  rows={2}
-                                />
-                                <button
-                                  onClick={() => {
-                                    const newConditions = (obj.conditions || []).filter((_: any, i: number) => i !== idx)
-                                    handleUpdateObjective({ conditions: newConditions })
-                                  }}
-                                  className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs h-8"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                              {cond && (
-                                <div className="text-xs">
-                                  <HighlightedCondition text={cond} />
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                          <button
-                            onClick={() => {
-                              const newConditions = [...(obj.conditions || []), 'mission.example = completed']
-                              handleUpdateObjective({ conditions: newConditions })
-                            }}
-                            className="w-full px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
-                          >
-                            + Add Condition
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null
-                })()}
-              </div>
-            )}
+            {/* Unlocks */}
+            <div>
+              <label className="block text-sm text-slate-400 mb-1">Unlocks (comma-separated IDs)</label>
+              <input
+                value={(mission.unlocks || []).join(', ')}
+                onChange={(e) => updateMission(mission.id, { 
+                  unlocks: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
+                })}
+                placeholder="mission_2, mission_3"
+                className="w-full px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm"
+              />
+            </div>
           </div>
         )}
       </div>
     </div>
   )
 }
-

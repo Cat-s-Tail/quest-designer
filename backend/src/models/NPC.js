@@ -1,50 +1,53 @@
 import mongoose from 'mongoose'
 
-const OptionSchema = new mongoose.Schema({
-  text: {
-    type: String,
-    required: true
-  },
-  condition: {
-    type: String,
-    default: ''
-  },
-  entryNode: {
-    type: String,
-    default: null
-  }
-}, { _id: false })
-
+// New NPC Node structure based on Unity StorySystem architecture
+// Node types: option, dialog, instruction, exit
 const NodeSchema = new mongoose.Schema({
   id: {
-    type: String,
-    required: true
-  },
-  name: {
     type: String,
     required: true
   },
   type: {
     type: String,
     required: true,
-    enum: ['dialog', 'options', 'commands', 'condition']
+    enum: ['option', 'dialog', 'instruction', 'exit']
   },
-  // For dialog nodes
-  texts: [{
-    type: String
-  }],
-  // For options nodes
-  options: [OptionSchema],
-  // For command nodes
-  actions: [{
-    type: String
-  }],
-  // For condition nodes
-  conditions: [mongoose.Schema.Types.Mixed],
-  // Next node
-  next: {
+  
+  // Common fields
+  text: {
     type: String,
-    default: null
+    default: ''
+  },
+  
+  // For option nodes: Lua expression (canShow predicate)
+  canShow: {
+    type: String,
+    default: 'true'
+  },
+  
+  // For dialog nodes
+  speaker: {
+    type: String,
+    default: ''
+  },
+  
+  // For instruction nodes: Lua code to execute
+  code: {
+    type: String,
+    default: ''
+  },
+  
+  // Next node(s) - array of node IDs
+  // Connection edges for visual editor (used by web UI, not Unity)
+  next: {
+    type: [String],
+    default: () => []
+  },
+  
+  // UI positioning for graph editor (not used by Unity)
+  position: {
+    x: { type: Number, default: 0 },
+    y: { type: Number, default: 0 }
   }
 }, { _id: false })
 
@@ -61,8 +64,25 @@ const NPCItemSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
-  options: [OptionSchema],
-  nodes: [NodeSchema]
+  avatar: {
+    type: String,
+    default: ''
+  },
+  
+  // Entry nodes - array of node IDs for initial interaction options
+  entryNodes: {
+    type: [String],
+    default: () => []
+  },
+  
+  // Flat array of all dialog flow nodes
+  nodes: [NodeSchema],
+  
+  // UI positioning for NPC in graph editor (not used by Unity)
+  position: {
+    x: { type: Number, default: 0 },
+    y: { type: Number, default: 0 }
+  }
 }, { _id: false })
 
 // This represents a file containing multiple NPCs

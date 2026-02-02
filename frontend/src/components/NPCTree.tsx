@@ -8,17 +8,12 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import dagre from 'dagre'
-import CustomEdge from './CustomEdge'
-
-const edgeTypes = {
-  custom: CustomEdge,
-}
 
 const dagreGraph = new dagre.graphlib.Graph({ compound: true })
 dagreGraph.setDefaultEdgeLabel(() => ({}))
 
 const nodeWidth = 180
-const nodeHeight = 60
+const nodeHeight = 80
 
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   dagreGraph.setGraph({ rankdir: direction })
@@ -47,12 +42,22 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOption, onRelink, onBreakLink }: any) {
+const getNodeColor = (type: string) => {
+  switch (type) {
+    case 'option': return '#9333ea' // purple
+    case 'dialog': return '#3b82f6' // blue
+    case 'instruction': return '#f97316' // orange
+    case 'exit': return '#6b7280' // gray
+    default: return '#475569'
+  }
+}
+
+export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, onRelink, onBreakLink }: any) {
   const [npcId, setNpcId] = useState(npc?.id)
-  
+
   const initialElements = useMemo(() => {
-    if (!npc) return { nodes: [], edges: [] }
-    
+    if (!npc) return { nodes: [] as any[], edges: [] as any[] }
+
     const reactFlowNodes: any[] = []
     const reactFlowEdges: any[] = []
 
@@ -63,129 +68,76 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
         label: (
           <div className="text-center">
             <div className="font-bold text-sm">{npc.name}</div>
-            <div className="text-xs text-slate-400">NPC</div>
+            <div className="text-xs text-slate-300">NPC Root</div>
           </div>
         ),
-        nodeId: 'root',
       },
       style: {
         background: '#1e40af',
         color: '#fff',
         border: '2px solid #3b82f6',
         borderRadius: '8px',
-        padding: '8px',
+        padding: '10px',
         fontWeight: 'bold',
       },
     })
 
-    // Create option entry edges from root
-    npc.options?.forEach((option: any, _idx: number) => {
-      if (option.entryNode) {
+    // Create edges from root to entryNodes
+    ;(npc.entryNodes || []).forEach((nodeId: string) => {
+      if (nodeId) {
         reactFlowEdges.push({
-          id: `root->${option.entryNode}`,
+          id: `root->${nodeId}`,
           source: `${npc.id}-root`,
-          target: option.entryNode,
-          type: 'custom',
-          animated: false,
-          style: { stroke: '#94a3b8' },
-          data: {
-            label: option.text,
-            isBold: true,
-          }
+          target: nodeId,
+          animated: true,
+          style: { stroke: '#60a5fa', strokeWidth: 2 },
         })
       }
     })
 
-    // Create nodes from flat node list and build edges from next/options
-    npc.nodes?.forEach((node: any) => {
+    // Create nodes from flat node list
+    ;(npc.nodes || []).forEach((node: any) => {
+      const isSelected = selectedNode === node.id
+      
       reactFlowNodes.push({
         id: node.id,
         data: {
           label: (
             <div className="text-center">
-              <div className="font-bold text-xs">{node.name || node.id}</div>
-              <div className="text-xs text-slate-400">{node.type}</div>
-              {node.type === 'dialog' && node.texts?.[0] && (
-                <div className="text-xs text-slate-500 truncate">{node.texts[0].substring(0, 20)}...</div>
-              )}
-              {node.type === 'commands' && (
-                <div className="text-xs text-slate-500">{node.actions?.length || 0} actions</div>
-              )}
-              {node.type === 'options' && (
-                <div className="text-xs text-slate-500">{node.options?.length || 0} choices</div>
-              )}
-              {node.type === 'condition' && (
-                <div className="text-xs text-slate-500">{node.conditions?.length || 0} paths</div>
+              <div className="font-bold text-xs">{node.type}</div>
+              <div className="text-xs text-slate-200 truncate" style={{ maxWidth: '150px' }}>
+                {node.text?.substring(0, 20) || node.code?.substring(0, 20) || node.id.substring(0, 8)}
+              </div>
+              {node.next?.length > 0 && (
+                <div className="text-xs text-slate-300">→ {node.next.length}</div>
               )}
             </div>
           ),
-          nodeId: node.id,
-          nodeType: node.type,
         },
         style: {
-          background: node.type === 'options' ? '#7c3aed' : node.type === 'condition' ? '#ea580c' : '#475569',
+          background: getNodeColor(node.type),
           color: '#fff',
-          border: selectedOption?.nodeId === node.id ? '2px solid #60a5fa' : '1px solid #64748b',
-          borderRadius: '6px',
-          padding: '6px',
+          border: isSelected ? '3px solid #fbbf24' : '2px solid #1e293b',
+          borderRadius: '8px',
+          padding: '8px',
           fontSize: '12px',
+          cursor: 'pointer',
         },
       })
 
-      // Create edge from node.next
-      if (node.next) {
-        reactFlowEdges.push({
-          id: `${node.id}->${node.next}`,
-          source: node.id,
-          target: node.next,
-          type: 'custom',
-          animated: false,
-          style: { stroke: '#94a3b8' },
-          data: {
-            label: 'next',
-            isBold: false,
-          }
-        })
-      }
-
-      // Create edges from node.options (for options type nodes)
-      if (node.type === 'options' && node.options) {
-        node.options.forEach((option: any, idx: number) => {
-          if (option.entryNode) {
+      // Create edges from node.next array
+      if (node.next && Array.isArray(node.next)) {
+        node.next.forEach((nextId: string, index: number) => {
+          if (nextId) {
             reactFlowEdges.push({
-              id: `${node.id}-option${idx}->${option.entryNode}`,
+              id: `${node.id}->${nextId}-${index}`,
               source: node.id,
-              target: option.entryNode,
-              type: 'custom',
+              target: nextId,
               animated: false,
-              style: { stroke: '#94a3b8' },
-              data: {
-                label: option.text,
-                isBold: true,
-                optionIndex: idx
-              }
-            })
-          }
-        })
-      }
-
-      // Create edges from node.conditions (for condition type nodes)
-      if (node.type === 'condition' && node.conditions) {
-        node.conditions.forEach((condition: any, idx: number) => {
-          const conditionData = typeof condition === 'object' ? condition : { condition, entryNode: null }
-          if (conditionData.entryNode) {
-            reactFlowEdges.push({
-              id: `${node.id}-cond${idx}->${conditionData.entryNode}`,
-              source: node.id,
-              target: conditionData.entryNode,
-              type: 'custom',
-              animated: false,
-              style: { stroke: '#ea580c' },
-              data: {
-                label: conditionData.condition,
-                isBold: true,
-                conditionIndex: idx
-              }
+              style: { stroke: '#94a3b8', strokeWidth: 2 },
+              label: node.next.length > 1 ? `${index + 1}` : '',
+              labelStyle: { fill: '#fff', fontSize: 10 },
+              labelBgStyle: { fill: '#334155' },
             })
           }
         })
@@ -193,7 +145,7 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
     })
 
     return { nodes: reactFlowNodes, edges: reactFlowEdges }
-  }, [npc, selectedOption])
+  }, [npc, selectedNode])
 
   const layoutedElements = useMemo(() => {
     return getLayoutedElements(initialElements.nodes, initialElements.edges, 'TB')
@@ -225,37 +177,29 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
   }, [layoutedElements, npc?.id, npcId, setNodes, setEdges])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
-    if (node.data?.nodeId) {
-      onSelectOption({ nodeId: node.data.nodeId, type: node.data.nodeType })
+    if (node.id.endsWith('-root')) {
+      onSelectNode(null) // Select NPC root
+    } else {
+      onSelectNode(node.id)
     }
-  }, [onSelectOption])
+  }, [onSelectNode])
 
   const handleConnect = useCallback((connection: any) => {
     if (onRelink && connection.source && connection.target) {
-      onRelink(connection.source, connection.target)
+      // Don't connect root nodes
+      if (!connection.source.endsWith('-root')) {
+        onRelink(connection.source, connection.target)
+      }
     }
-    // For non-options nodes, remove old edges before adding new one
-    const sourceNode = npc?.nodes?.find((n: any) => n.id === connection.source.replace(`${npc.id}-root`, 'root'))
-    if (sourceNode && sourceNode.type !== 'options') {
-      setEdges((eds) => {
-        // Remove existing edges from this source
-        const filtered = eds.filter(e => e.source !== connection.source)
-        // Add the new edge
-        return addEdge({ ...connection, animated: false, style: { stroke: '#94a3b8' } }, filtered)
-      })
-    } else {
-      setEdges((eds) => addEdge({ ...connection, animated: false, style: { stroke: '#94a3b8' } }, eds))
-    }
-  }, [setEdges, onRelink, npc])
+    setEdges((eds) => addEdge({ ...connection, animated: false, style: { stroke: '#94a3b8', strokeWidth: 2 } }, eds))
+  }, [setEdges, onRelink])
 
   const handleEdgeClick = useCallback((event: any, edge: any) => {
     if ((event.ctrlKey || event.metaKey) && onBreakLink) {
-      // Extract actual node IDs from edge
-      const fromId = edge.source.replace(`${npc?.id}-root`, 'root')
-      const toId = edge.target
-      const optionIndex = edge.data?.optionIndex
+      const sourceId = edge.source.replace(`${npc?.id}-root`, '')
+      const targetId = edge.target
       
-      onBreakLink(fromId === 'root' ? edge.source : fromId, toId, optionIndex)
+      onBreakLink(sourceId || edge.source, targetId)
       
       // Remove edge from UI
       setEdges((eds) => eds.filter(e => e.id !== edge.id))
@@ -265,36 +209,56 @@ export default function NPCTree({ npc, selectedOption, onSelectOption, onAddOpti
   if (!npc) {
     return (
       <div className="w-full h-full bg-slate-900 rounded-lg flex items-center justify-center text-slate-400">
-        Select an NPC to view options tree
+        Select an NPC to view dialog tree
       </div>
     )
   }
 
   return (
     <div className="w-full h-full bg-slate-900 rounded-lg overflow-hidden flex flex-col">
-      <div className="bg-slate-800 p-2 border-b border-slate-700">
+      <div className="bg-slate-800 p-2 border-b border-slate-700 flex gap-2">
         <button
-          onClick={onAddOption}
-          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-sm rounded"
+          onClick={() => onAddNode('option')}
+          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-sm rounded"
         >
-          + Add Node
+          + Option
+        </button>
+        <button
+          onClick={() => onAddNode('dialog')}
+          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-sm rounded"
+        >
+          + Dialog
+        </button>
+        <button
+          onClick={() => onAddNode('instruction')}
+          className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-sm rounded"
+        >
+          + Instruction
+        </button>
+        <button
+          onClick={() => onAddNode('exit')}
+          className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-sm rounded"
+        >
+          + Exit
         </button>
       </div>
       <div className="flex-1">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              edgeTypes={edgeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onNodeClick={handleNodeClick}
-              onEdgeClick={handleEdgeClick}
-              onConnect={handleConnect}
-              fitView
-            >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
+          onConnect={handleConnect}
+          fitView
+        >
           <Background color="#334155" />
           <Controls />
         </ReactFlow>
+      </div>
+      <div className="bg-slate-800 p-2 border-t border-slate-700 text-xs text-slate-400">
+        Tip: Drag from node handle to create connections. Ctrl+Click edge to delete.
       </div>
     </div>
   )

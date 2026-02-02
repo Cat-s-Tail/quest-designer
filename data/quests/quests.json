@@ -1,177 +1,96 @@
 {
-  "quests": [
+  "missions": [
     {
-      "id": "gather_supplies",
-      "title": "Gather Supplies",
-      "description": "Help John gather essential supplies for his business",
-      "giver": "base1.john",
-      "category": "merchant",
-      "difficulty": "easy",
-      "objectiveStructure": "collect_food AND collect_water AND collect_tools AND deliver_to_john",
-      "objectives": [
-        {
-          "id": "collect_food",
-          "type": "submit",
-          "item": "food",
-          "amount": 5,
-          "description": "Collect 5 food items"
-        },
-        {
-          "id": "collect_water",
-          "type": "submit",
-          "item": "water",
-          "amount": 3,
-          "description": "Collect 3 water bottles"
-        },
-        {
-          "id": "collect_tools",
-          "type": "submit",
-          "item": "tools",
-          "amount": 2,
-          "description": "Collect 2 tool sets"
-        },
-        {
-          "id": "deliver_to_john",
-          "type": "event",
-          "eventType": "ITEM_DELIVERED",
-          "eventCondition": "npc = john",
-          "amount": 1,
-          "description": "Deliver all items to John"
-        }
-      ],
-      "rewards": {
-        "xp": 500,
-        "money": 1000,
-        "reputation": 50,
-        "items": []
-      },
-      "unlocks": [
-        "investigate_cave"
-      ],
-      "actions": [
-        "var.set key=john_reputation value=friendly",
-        "var.add key=completed_quests value=1",
-        "event.emit type=QUEST_MILESTONE quest=gather_supplies milestone=first_completion"
-      ]
-    },
-    {
-      "id": "investigate_cave",
-      "title": "Investigate the Mysterious Cave",
-      "description": "A merchant reports strange noises from the cave nearby. Investigate and report back.",
-      "giver": "john",
-      "category": "exploration",
-      "difficulty": "medium",
-      "objectiveStructure": "enter_cave AND (defeat_goblins OR collect_artifact) AND report_to_john",
-      "objectives": [
-        {
-          "id": "enter_cave",
-          "type": "event",
-          "eventType": "LOCATION_ENTERED",
-          "eventCondition": "location = cave_01",
-          "amount": 1,
-          "description": "Enter the mysterious cave"
-        },
-        {
-          "id": "defeat_goblins",
-          "type": "event",
-          "eventType": "ENEMY_KILLED",
-          "eventCondition": "enemy_id = cave_goblin",
-          "amount": 3,
-          "description": "Defeat 3 cave goblins"
-        },
-        {
-          "id": "collect_artifact",
-          "type": "submit",
-          "item": "mysterious_stone",
-          "amount": 1,
-          "description": "Collect the mysterious stone"
-        },
-        {
-          "id": "report_to_john",
-          "type": "event",
-          "eventType": "NPC_TALKED",
-          "eventCondition": "npc = john",
-          "amount": 1,
-          "description": "Report back to John"
-        }
-      ],
-      "rewards": {
-        "xp": 1000,
-        "money": 2000,
-        "reputation": 100,
-        "items": [
-          "rare_ring"
+      "id": "collect_herbs",
+      "name": "采集草药",
+      "description": "为村庄药师收集10株草药",
+      "category": "gathering",
+      
+      "canUnlock": "var.level >= 1",
+      
+      "conditions": {
+        "and": [
+          {
+            "objective_id": "collect_herbs",
+            "related_event": "ITEM_COLLECTED",
+            "validate": "event.itemType == 'herb'",
+            "count": 0,
+            "requirement": 10,
+            "description": "收集草药"
+          }
         ]
       },
-      "unlocks": [
-        "defeat_boss"
-      ],
-      "actions": [
-        "var.set key=cave_explored value=true",
-        "mission.unlock quest=secret_cave_treasure",
-        "event.emit type=CAVE_CLEARED location=cave_01"
-      ]
+      
+      "onEvent": ["@mission_evaluate_standard"]
     },
+    
     {
-      "id": "defeat_boss",
-      "title": "Defeat the Cave Boss",
-      "description": "The cave goblin chief is terrorizing the area. Defeat him to bring peace.",
-      "giver": "town_guard",
+      "id": "defeat_bandits",
+      "name": "击败山贼",
+      "description": "击杀20个山贼并摧毁他们的营地",
       "category": "combat",
-      "difficulty": "hard",
-      "objectiveStructure": "defeat_boss AND collect_trophy",
-      "objectives": [
-        {
-          "id": "defeat_boss",
-          "type": "event",
-          "eventType": "ENEMY_KILLED",
-          "eventCondition": "enemy_id = goblin_chief AND location = cave_01",
-          "amount": 1,
-          "description": "Defeat the Goblin Chief in the cave"
-        },
-        {
-          "id": "collect_trophy",
-          "type": "submit",
-          "item": "goblin_chief_crown",
-          "amount": 1,
-          "description": "Collect the chief's crown as proof"
-        }
-      ],
-      "rewards": {
-        "xp": 2500,
-        "money": 5000,
-        "reputation": 250,
-        "items": [
-          "legendary_sword"
+      
+      "canUnlock": "var.level >= 5",
+      
+      "conditions": {
+        "and": [
+          {
+            "objective_id": "kill_bandits",
+            "related_event": "ENEMY_KILLED",
+            "validate": "event.enemyType == 'bandit'",
+            "count": 0,
+            "requirement": 20,
+            "description": "击杀山贼"
+          },
+          {
+            "objective_id": "destroy_camp",
+            "related_event": "OBJECT_DESTROYED",
+            "validate": "event.objectId == 'bandit_camp'",
+            "count": 0,
+            "requirement": 1,
+            "description": "摧毁山贼营地"
+          }
         ]
       },
-      "unlocks": []
+      
+      "onEvent": ["@mission_evaluate_standard"]
     },
+    
     {
-      "id": "hunting_practice",
-      "title": "Hunting Practice",
-      "description": "Practice your hunting skills by shooting deer with headshots",
-      "giver": "hunter",
-      "category": "training",
-      "difficulty": "medium",
-      "objectiveStructure": "headshot_deer",
-      "objectives": [
-        {
-          "id": "headshot_deer",
-          "type": "event",
-          "eventType": "ENEMY_HIT",
-          "eventCondition": "bodypart = head AND target = deer",
-          "amount": 5,
-          "description": "Kill 5 deer with headshots"
-        }
-      ],
-      "rewards": {
-        "xp": 300,
-        "money": 500,
-        "reputation": 25,
-        "items": []
+      "id": "survival_challenge",
+      "name": "生存挑战",
+      "description": "击杀20个敌人并收集5个补给箱，死亡会重置进度",
+      "category": "challenge",
+      
+      "canUnlock": "var.level >= 10",
+      
+      "conditions": {
+        "and": [
+          {
+            "objective_id": "kill_enemies",
+            "related_event": "ENEMY_KILLED",
+            "validate": "true",
+            "count": 0,
+            "requirement": 20,
+            "description": "击杀敌人",
+            "reset_on_death": true
+          },
+          {
+            "objective_id": "collect_supplies",
+            "related_event": "ITEM_COLLECTED",
+            "validate": "event.itemType == 'supply_box'",
+            "count": 0,
+            "requirement": 5,
+            "description": "收集补给箱",
+            "reset_on_death": true
+          }
+        ]
       },
-      "unlocks": []
+      
+      "onEvent": [
+        "@mission_reset_on_death",
+        "@mission_evaluate_standard"
+      ]
     }
   ]
 }

@@ -12,8 +12,8 @@ import dagre from 'dagre'
 const dagreGraph = new dagre.graphlib.Graph({ compound: true })
 dagreGraph.setDefaultEdgeLabel(() => ({}))
 
-const nodeWidth = 180
-const nodeHeight = 80
+const nodeWidth = 200
+const nodeHeight = 100
 
 const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   dagreGraph.setGraph({ rankdir: direction })
@@ -43,30 +43,38 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
 }
 
 export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink }: any) {
-  const [_nodeIdCounter, _setNodeIdCounter] = useState(quests.length)
   const [questsVersion, setQuestsVersion] = useState(0)
 
-  // Build nodes from quests
+  // Build nodes from missions/quests
   const initialNodes = useMemo(() => {
-    return quests.map((quest: any) => ({
-      id: quest.id,
-      data: {
-        label: (
-          <div className="text-center">
-            <div className="font-bold text-sm">{quest.title}</div>
-            <div className="text-xs text-slate-400">{quest.difficulty}</div>
-          </div>
-        ),
-      },
-      style: {
-        background: selectedQuest === quest.id ? '#2563eb' : '#334155',
-        color: '#fff',
-        border: selectedQuest === quest.id ? '2px solid #60a5fa' : '1px solid #64748b',
-        borderRadius: '8px',
-        padding: '8px',
-        cursor: 'pointer',
-      },
-    }))
+    return quests.map((quest: any) => {
+      const isSelected = selectedQuest === quest.id
+      const objectiveCount = quest.conditions?.and?.length || quest.objectives?.length || 0
+      
+      return {
+        id: quest.id,
+        data: {
+          label: (
+            <div className="text-center p-2">
+              <div className="font-bold text-sm mb-1">{quest.name || quest.title}</div>
+              <div className="text-xs text-slate-300">{quest.category || 'general'}</div>
+              <div className="text-xs text-slate-400 mt-1">
+                {objectiveCount} objective{objectiveCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ),
+        },
+        style: {
+          background: isSelected ? '#2563eb' : '#334155',
+          color: '#fff',
+          border: isSelected ? '3px solid #60a5fa' : '2px solid #64748b',
+          borderRadius: '8px',
+          padding: '4px',
+          cursor: 'pointer',
+          minWidth: '180px',
+        },
+      }
+    })
   }, [quests, selectedQuest])
 
   // Build edges from unlocks
@@ -80,23 +88,12 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
             source: quest.id,
             target: unlockedId,
             animated: true,
-            style: { stroke: '#60a5fa' },
-            label: (
-              <div style={{
-                background: '#1f2937',
-                color: '#ffffff',
-                fontSize: '12px',
-                padding: '4px 8px',
-                fontWeight: 'bold',
-                borderRadius: '4px',
-                border: '1px solid #60a5fa'
-              }}>
-                unlocks: {unlockedId}
-              </div>
-            ),
-            labelBgStyle: { fill: 'transparent' },
-            labelBgPadding: [0, 0],
-            labelBgBorderRadius: 0,
+            style: { stroke: '#60a5fa', strokeWidth: 2 },
+            label: 'unlocks',
+            labelStyle: { fill: '#fff', fontSize: 11, fontWeight: 'bold' },
+            labelBgStyle: { fill: '#1e3a8a', fillOpacity: 0.8 },
+            labelBgPadding: [4, 4],
+            labelBgBorderRadius: 4,
           })
         })
       }
@@ -145,7 +142,7 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
       // Remove the edge from state
       setEdges((eds) => eds.filter((e) => e.id !== edge.id))
       
-      // Call onRelink with null to indicate breaking the link
+      // Call onRelink with true to indicate breaking the link
       if (onRelink) {
         onRelink(edge.source, edge.target, true) // true = breaking link
       }
@@ -156,18 +153,19 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     if (onRelink && connection.source && connection.target) {
       onRelink(connection.source, connection.target)
     }
-    setEdges((eds) => addEdge({ ...connection, animated: true, style: { stroke: '#60a5fa' } }, eds))
+    setEdges((eds) => addEdge({ 
+      ...connection, 
+      animated: true, 
+      style: { stroke: '#60a5fa', strokeWidth: 2 },
+      label: 'unlocks',
+      labelStyle: { fill: '#fff', fontSize: 11, fontWeight: 'bold' },
+      labelBgStyle: { fill: '#1e3a8a', fillOpacity: 0.8 },
+    }, eds))
   }, [setEdges, onRelink])
 
   const handleAddNode = useCallback(() => {
     if (!onAddQuest) return
-    const newQuest = {
-      id: `quest_${Date.now()}`,
-      title: 'New Quest',
-      difficulty: 'easy',
-      unlocks: [],
-    }
-    onAddQuest(newQuest)
+    onAddQuest()
   }, [onAddQuest])
 
   return (
@@ -177,7 +175,7 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
           onClick={handleAddNode}
           className="px-3 py-1 bg-green-600 hover:bg-green-700 text-sm rounded"
         >
-          + Add Quest
+          + Add Mission
         </button>
       </div>
       <div className="flex-1">
@@ -195,7 +193,9 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
           <Controls />
         </ReactFlow>
       </div>
+      <div className="bg-slate-800 p-2 border-t border-slate-700 text-xs text-slate-400">
+        Tip: Drag from mission to create unlock relationships. Ctrl+Click edge to delete.
+      </div>
     </div>
   )
 }
-

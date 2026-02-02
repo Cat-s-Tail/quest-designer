@@ -1,200 +1,171 @@
 {
   "npcs": [
     {
-      "id": "base1.john",
-      "name": "John the Merchant",
-      "description": "A merchant who needs your help gathering supplies",
-      "options": [
-        {
-          "text": "What do you need?",
-          "condition": "mission.gather_supplies != unlocked",
-          "entryNode": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
-        },
-        {
-          "text": "How are you doing with those supplies?",
-          "condition": "",
-          "entryNode": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"
-        },
-        {
-          "text": "Submit Mission: Gather Supplies",
-          "condition": "mission.gather_supplies = unlocked AND mission.gather_supplies != completed",
-          "entryNode": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f"
-        }
-              ],
+      "id": "village_elder",
+      "name": "村长",
+      "description": "村庄的智慧长者",
+      "avatar": "avatars/village_elder",
+      
+      "entryNodes": ["greeting", "quest_herbs"],
+      
       "nodes": [
-                {
-          "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
-          "name": "Greeting Dialog",
+        {
+          "id": "greeting",
+          "type": "option",
+          "text": "你好，村长",
+          "canShow": "true",
+          "next": ["elder_greeting"]
+        },
+        {
+          "id": "quest_herbs",
+          "type": "option",
+          "text": "[任务] 关于草药收集...",
+          "canShow": "not mission.isUnlocked('collect_herbs')",
+          "next": ["herb_quest_intro"]
+        },
+        {
+          "id": "elder_greeting",
           "type": "dialog",
-          "texts": [
-            "I need to gather supplies for my business. Can you help me?",
-            "New yeah"
-          ],
-          "next": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a"
+          "text": "欢迎，年轻人。有什么我能帮助你的吗？",
+          "speaker": "村长",
+          "next": ["ask_about_village", "goodbye"]
         },
         {
-          "id": "d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a",
-          "name": "Ask for Help",
-          "type": "options",
-          "options": [
-            {
-              "text": "I'll help you out",
-              "entryNode": null
-            },
-            {
-              "text": "Maybe later",
-              "entryNode": "a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d"
-            }
-          ]
+          "id": "ask_about_village",
+          "type": "option",
+          "text": "这个村庄怎么样？",
+          "canShow": "true",
+          "next": ["village_info"]
         },
         {
-          "id": "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b",
-          "name": "Accept Quest Commands",
-          "type": "commands",
-                  "actions": [
-                    "var.set key=john_relationship value=friendly",
-                    "mission.unlock quest=gather_supplies",
-                    "event.emit type=MISSION_UNLOCKED quest=gather_supplies source=john"
-          ]
+          "id": "goodbye",
+          "type": "option",
+          "text": "再见",
+          "canShow": "true",
+          "next": ["exit"]
         },
         {
-          "id": "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c",
-          "name": "Accept Response",
+          "id": "village_info",
           "type": "dialog",
-          "texts": [
-            "Excellent! I need food, water, and tools."
-                  ]
-                },
-                {
-          "id": "a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d",
-          "name": "Decline Commands",
-          "type": "commands",
-                  "actions": [
-                    "var.set key=john_relationship value=neutral"
-                  ],
-          "next": "b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e"
+          "text": "我们是一个和平的村庄，但最近山贼越来越猖獗了...",
+          "speaker": "村长",
+          "next": ["goodbye"]
         },
         {
-          "id": "b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e",
-          "name": "Decline Response",
+          "id": "herb_quest_intro",
           "type": "dialog",
-          "texts": [
-            "Suit yourself. I'll ask someone else."
-          ]
+          "text": "村里的药师需要草药。你能帮忙收集10株吗？",
+          "speaker": "村长",
+          "next": ["accept_herb_quest", "decline_herb_quest"]
         },
         {
-          "id": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e",
-          "name": "Progress Options",
-          "type": "options",
-          "options": [
-                {
-              "text": "I have some items",
-              "entryNode": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f"
-                },
-                {
-              "text": "Still working on it",
-              "entryNode": "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b"
-            }
-          ]
+          "id": "accept_herb_quest",
+          "type": "option",
+          "text": "好的，我去收集",
+          "canShow": "true",
+          "next": ["start_herb_quest"]
         },
         {
-          "id": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f",
-          "name": "Partial Progress Commands",
-          "type": "commands",
-          "actions": [
-            "mission.progress quest=gather_supplies progress=50",
-            "event.emit type=PROGRESS_UPDATED quest=gather_supplies progress=50"
-              ],
-          "next": "d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a"
+          "id": "decline_herb_quest",
+          "type": "option",
+          "text": "我现在没空",
+          "canShow": "true",
+          "next": ["exit"]
         },
         {
-          "id": "d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a",
-          "name": "Partial Response",
+          "id": "start_herb_quest",
+          "type": "instruction",
+          "code": "mission.unlock('collect_herbs'); mission.start('collect_herbs')",
+          "next": ["quest_started"]
+        },
+        {
+          "id": "quest_started",
           "type": "dialog",
-          "texts": [
-            "That's a start! Keep going."
-          ]
-        },
-                {
-          "id": "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b",
-          "name": "Waiting Response",
-          "type": "dialog",
-          "texts": [
-            "Don't take too long, will you?"
-          ]
+          "text": "太好了！草药在森林里很常见。",
+          "speaker": "村长",
+          "next": ["goodbye"]
         },
         {
-          "id": "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
-          "name": "Submit Quest Commands",
-          "type": "commands",
-          "actions": [
-            "mission.complete quest=gather_supplies",
-            "var.set key=john_relationship value=trusted",
-            "event.emit type=MISSION_COMPLETED quest=gather_supplies source=john"
-                  ],
-          "next": "f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c"
-        },
-        {
-          "id": "f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c",
-          "name": "Quest Complete",
-          "type": "dialog",
-          "texts": [
-            "You did it! Thank you so much! Here's your reward."
-          ]
+          "id": "exit",
+          "type": "exit"
         }
       ]
     },
+    
     {
-      "id": "sarah",
-      "name": "Sarah the Guard",
-      "description": "A town guard who maintains order and security",
-      "options": [
-        {
-          "text": "Hello there!",
-          "condition": "",
-          "entryNode": "a5b6c7d8-e9f0-4a1b-2c3d-4e5f6a7b8c9d"
-        }
-      ],
+      "id": "blacksmith",
+      "name": "铁匠汤姆",
+      "description": "村庄的老铁匠，擅长打造武器",
+      "avatar": "avatars/blacksmith",
+      
+      "entryNodes": ["greeting", "shop_option"],
+      
       "nodes": [
         {
-          "id": "a5b6c7d8-e9f0-4a1b-2c3d-4e5f6a7b8c9d",
-          "name": "Greeting",
-          "type": "dialog",
-          "texts": [
-            "Welcome to town. What brings you here?"
-              ],
-          "next": "b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d0e"
+          "id": "greeting",
+          "type": "option",
+          "text": "你好，铁匠",
+          "canShow": "true",
+          "next": ["main_greeting"]
         },
         {
-          "id": "b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d0e",
-          "name": "Response Options",
-          "type": "options",
-          "options": [
-                {
-                  "text": "Just passing through",
-              "entryNode": "c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e1f"
-            },
-                    {
-              "text": "Looking for work",
-              "entryNode": "d8e9f0a1-b2c3-4d4e-5f6a-7b8c9d0e1f2a"
-                    }
-                  ]
-                },
-                {
-          "id": "c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e1f",
-          "name": "Passing Through",
-          "type": "dialog",
-          "texts": [
-            "Safe travels, then."
-          ]
+          "id": "shop_option",
+          "type": "option",
+          "text": "我想看看你的商品",
+          "canShow": "true",
+          "next": ["shop_menu"]
         },
         {
-          "id": "d8e9f0a1-b2c3-4d4e-5f6a-7b8c9d0e1f2a",
-          "name": "Work Response",
+          "id": "main_greeting",
           "type": "dialog",
-          "texts": [
-            "Try talking to the merchants. They always need help."
-          ]
+          "text": "欢迎光临！我这里有各种武器和装备。",
+          "speaker": "铁匠汤姆",
+          "next": ["shop_option", "goodbye"]
+        },
+        {
+          "id": "shop_menu",
+          "type": "dialog",
+          "text": "这些是我的得意之作！",
+          "speaker": "铁匠汤姆",
+          "next": ["buy_sword", "back"]
+        },
+        {
+          "id": "buy_sword",
+          "type": "option",
+          "text": "购买铁剑 (100金币)",
+          "canShow": "var.gold >= 100",
+          "next": ["purchase_sword"]
+        },
+        {
+          "id": "back",
+          "type": "option",
+          "text": "返回",
+          "canShow": "true",
+          "next": ["main_greeting"]
+        },
+        {
+          "id": "purchase_sword",
+          "type": "instruction",
+          "code": "var.gold = var.gold - 100; event.emit('ITEM_PURCHASED', {item='iron_sword', cost=100})",
+          "next": ["purchase_thanks"]
+        },
+        {
+          "id": "purchase_thanks",
+          "type": "dialog",
+          "text": "谢谢惠顾！这是上等货！",
+          "speaker": "铁匠汤姆",
+          "next": ["goodbye"]
+        },
+        {
+          "id": "goodbye",
+          "type": "option",
+          "text": "再见",
+          "canShow": "true",
+          "next": ["exit"]
+        },
+        {
+          "id": "exit",
+          "type": "exit"
         }
       ]
     }

@@ -162,13 +162,22 @@ export const useDataStore = create(
 
       updateQuest: (questId, updates) => {
         const data = get().currentData
-        if (!data || !data.quests) return
+        if (!data) return
+        
+        // Support both 'quests' and 'missions' keys
+        const key = data.missions ? 'missions' : 'quests'
+        if (!data[key]) return
 
-        const questIndex = data.quests.findIndex(q => q.id === questId)
+        const questIndex = data[key].findIndex(q => q.id === questId)
         if (questIndex >= 0) {
-          data.quests[questIndex] = { ...data.quests[questIndex], ...updates }
+          data[key][questIndex] = { ...data[key][questIndex], ...updates }
           set({ currentData: { ...data } })
         }
+      },
+
+      updateMission: (missionId, updates) => {
+        // Alias for updateQuest to support new mission terminology
+        return get().updateQuest(missionId, updates)
       },
 
       addNPC: () => {
@@ -179,8 +188,10 @@ export const useDataStore = create(
           id: `npc_${Date.now()}`,
           name: 'New NPC',
           description: '',
-          location: '',
-          options: []
+          avatar: '',
+          entryNodes: [],
+          nodes: [],
+          position: { x: 0, y: 0 }
         }
 
         data.npcs.push(newNPC)
@@ -190,32 +201,43 @@ export const useDataStore = create(
 
       addQuest: () => {
         const data = get().currentData
-        if (!data || !data.quests) return
+        if (!data) return
+        
+        // Support both 'quests' and 'missions' keys
+        const key = data.missions ? 'missions' : 'quests'
+        if (!data[key]) data[key] = []
 
         const newQuest = {
-          id: `quest_${Date.now()}`,
-          title: 'New Quest',
+          id: `mission_${Date.now()}`,
+          name: 'New Mission',
           description: '',
-          giver: '',
-          category: '',
-          difficulty: 'easy',
-          objectiveStructure: '',
-          objectives: [],
-          rewards: { xp: 0, money: 0, reputation: 0, items: [] },
-          unlocks: []
+          category: 'general',
+          canUnlock: 'true',
+          conditions: { and: [] },
+          onEvent: [],
+          position: { x: 0, y: 0 }
         }
 
-        data.quests.push(newQuest)
+        data[key].push(newQuest)
         set({ currentData: { ...data } })
         return newQuest
       },
 
+      addMission: () => {
+        // Alias for addQuest to support new mission terminology
+        return get().addQuest()
+      },
+
       deleteQuest: (questId) => {
         const data = get().currentData
-        if (!data || !data.quests) return
+        if (!data) return
+        
+        // Support both 'quests' and 'missions' keys
+        const key = data.missions ? 'missions' : 'quests'
+        if (!data[key]) return
 
         // Remove the quest
-        const updatedQuests = data.quests.filter(q => q.id !== questId)
+        const updatedQuests = data[key].filter(q => q.id !== questId)
         
         // Clean up references in other quests' unlocks
         const cleanedQuests = updatedQuests.map(q => ({
@@ -223,7 +245,43 @@ export const useDataStore = create(
           unlocks: (q.unlocks || []).filter(id => id !== questId)
         }))
 
-        set({ currentData: { ...data, quests: cleanedQuests } })
+        set({ currentData: { ...data, [key]: cleanedQuests } })
+      },
+
+      deleteMission: (missionId) => {
+        // Alias for deleteQuest to support new mission terminology
+        return get().deleteQuest(missionId)
+      },
+
+      // Helper to generate GUID for node IDs
+      generateGUID: () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0
+          const v = c === 'x' ? r : (r & 0x3 | 0x8)
+          return v.toString(16)
+        })
+      },
+
+      // Clear all data for current project
+      clearProjectData: async () => {
+        set({ loading: true, error: null })
+        try {
+          const project = getCurrentProject()
+          const response = await axios.post(`${API_BASE}/files/clear-project`, {}, {
+            params: { project }
+          })
+          
+          // Reload files after clearing
+          await get().loadFiles()
+          set({ currentFile: null, currentData: null })
+          
+          return response.data
+        } catch (error) {
+          set({ error: error.message })
+          throw error
+        } finally {
+          set({ loading: false })
+        }
       }
     }),
     {

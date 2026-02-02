@@ -1,104 +1,64 @@
 import mongoose from 'mongoose'
 
-const ObjectiveSchema = new mongoose.Schema({
+// New Mission/Quest structure based on Unity StorySystem architecture
+const MissionItemSchema = new mongoose.Schema({
   id: {
     type: String,
     required: true
   },
-  type: {
-    type: String,
-    required: true,
-    enum: ['submit', 'event']
-  },
-  description: {
-    type: String,
-    required: true
-  },
-  amount: {
-    type: Number,
-    required: true,
-    default: 1
-  },
-  // For submit type
-  item: {
-    type: String
-  },
-  // For event type
-  eventType: {
-    type: String
-  },
-  eventCondition: {
-    type: String
-  },
-  // Optional conditions
-  conditions: [{
-    type: String
-  }]
-}, { _id: false })
-
-const RewardsSchema = new mongoose.Schema({
-  xp: {
-    type: Number,
-    default: 0
-  },
-  money: {
-    type: Number,
-    default: 0
-  },
-  reputation: {
-    type: Number,
-    default: 0
-  },
-  items: [{
-    type: String
-  }]
-}, { _id: false })
-
-const QuestItemSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    required: true
-  },
-  title: {
+  name: {
     type: String,
     required: true
   },
   description: {
     type: String,
     default: ''
-  },
-  giver: {
-    type: String,
-    required: true
   },
   category: {
     type: String,
     default: 'general'
   },
-  difficulty: {
+  
+  // Lua expression string to determine if mission can be unlocked
+  canUnlock: {
     type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
+    default: 'true'
   },
-  objectiveStructure: {
-    type: String,
-    default: ''
+  
+  // JSON logical expression defining mission objectives
+  // Structure: { "and": [...], "or": [...], "not": {...} }
+  // Each objective has: objective_id, related_event, validate (Lua), count, requirement, description, reset_on_death
+  conditions: {
+    type: mongoose.Schema.Types.Mixed,
+    required: true,
+    default: () => ({ and: [] })
   },
-  objectives: [ObjectiveSchema],
+  
+  // Array of Lua script names (can be @references like "@mission_evaluate_standard")
+  // Scripts execute sequentially, passing context between them
+  onEvent: {
+    type: [String],
+    default: () => []
+  },
+  
+  // Optional metadata
   rewards: {
-    type: RewardsSchema,
+    type: mongoose.Schema.Types.Mixed,
     default: () => ({})
   },
   unlocks: [{
     type: String
   }],
-  actions: [{
-    type: String
-  }]
+  
+  // UI positioning for graph editor (not used by Unity)
+  position: {
+    x: { type: Number, default: 0 },
+    y: { type: Number, default: 0 }
+  }
 }, { _id: false })
 
-// This represents a file containing multiple Quests
-const QuestFileSchema = new mongoose.Schema({
+// This represents a file containing multiple Missions
+const MissionFileSchema = new mongoose.Schema({
   project: {
     type: String,
     required: true,
@@ -110,14 +70,14 @@ const QuestFileSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  quests: [QuestItemSchema]
+  missions: [MissionItemSchema]
 }, {
   timestamps: true
 })
 
 // Compound unique index: project + filename must be unique
-QuestFileSchema.index({ project: 1, filename: 1 }, { unique: true })
+MissionFileSchema.index({ project: 1, filename: 1 }, { unique: true })
 
-const QuestFile = mongoose.model('QuestFile', QuestFileSchema, 'quest_files')
+const MissionFile = mongoose.model('MissionFile', MissionFileSchema, 'mission_files')
 
-export default QuestFile
+export default MissionFile

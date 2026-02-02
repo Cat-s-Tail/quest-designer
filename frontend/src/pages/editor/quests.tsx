@@ -11,6 +11,9 @@ export default function QuestsPage() {
 
   const displayProject = pendingProject !== null ? pendingProject : currentProject
   const hasChanges = pendingProject !== null && pendingProject !== currentProject
+  
+  // Support both 'quests' and 'missions' keys for backward compatibility
+  const hasValidData = currentData && (currentData.quests || currentData.missions)
 
   const handleApply = async () => {
     setIsApplying(true)
@@ -107,8 +110,8 @@ export default function QuestsPage() {
         <div className="p-6">
           {!currentFile ? (
             <div className="text-slate-400">Select or create a quest file to start editing</div>
-          ) : !currentData?.quests ? (
-            <div className="text-slate-400">Selected file does not contain quest data</div>
+          ) : !hasValidData ? (
+            <div className="text-slate-400">Selected file does not contain quest/mission data</div>
           ) : (
             <QuestEditor />
           )}
