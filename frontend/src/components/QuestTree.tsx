@@ -131,10 +131,16 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
   useEffect(() => {
     setNodes(prevNodes => {
       const newNodesMap = new Map(layoutedNodes.map((n: any) => [n.id, n]))
-      // Keep existing nodes with their current positions (user may have moved them)
+      // Keep existing nodes, but prioritize saved positions from data
       const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
-        const newNode = newNodesMap.get(prevNode.id)!
-        return { ...newNode, position: prevNode.position }
+        const newNode = newNodesMap.get(prevNode.id) as any
+        // Only preserve prevNode position if newNode doesn't have a saved position
+        // This allows data from backend (with saved positions) to take precedence
+        const shouldUseNewPosition = newNode?.position && !(newNode.position.x === 0 && newNode.position.y === 0)
+        return { 
+          ...newNode, 
+          position: shouldUseNewPosition ? newNode.position : prevNode.position 
+        }
       })
       // Add new nodes with layout positions
       const newOnes = layoutedNodes.filter((n: any) => !prevNodes.find(pn => pn.id === n.id))
@@ -166,6 +172,7 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     // Save positions on drag end
     changes.forEach((change: any) => {
       if (change.type === 'position' && change.dragging === false && change.position) {
+        console.log('[QuestTree] Saving mission position:', change.id, change.position)
         if (onUpdatePosition) {
           onUpdatePosition(change.id, change.position)
         }
@@ -201,9 +208,11 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
       ...connection, 
       animated: true, 
       style: { stroke: '#60a5fa', strokeWidth: 2 },
-      label: 'unlocks',
+      label: 'next',
       labelStyle: { fill: '#fff', fontSize: 11, fontWeight: 'bold' },
       labelBgStyle: { fill: '#1e3a8a', fillOpacity: 0.8 },
+      labelBgPadding: [4, 4],
+      labelBgBorderRadius: 4,
     }, eds))
   }, [setEdges, onRelink])
 

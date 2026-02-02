@@ -186,14 +186,20 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
       setEdges(layoutedElements.edges)
       setNpcId(npc?.id)
     } else {
-      // Same NPC, update data but preserve positions (user may have dragged nodes)
+      // Same NPC, update data
       setNodes(prevNodes => {
         const newNodesMap = new Map(layoutedElements.nodes.map((n: any) => [n.id, n]))
         const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
-          const newNode = newNodesMap.get(prevNode.id)
-          return { ...newNode, position: prevNode.position }
+          const newNode = newNodesMap.get(prevNode.id)!
+          // Only preserve prevNode position if newNode doesn't have a saved position
+          // This allows data from backend (with saved positions) to take precedence
+          const shouldUseNewPosition = newNode.position && !(newNode.position.x === 0 && newNode.position.y === 0)
+          return { 
+            ...newNode, 
+            position: shouldUseNewPosition ? newNode.position : prevNode.position 
+          }
         })
-        const newOnes = layoutedElements.nodes.filter(n => !prevNodes.find(pn => pn.id === n.id))
+        const newOnes = layoutedElements.nodes.filter((n: any) => !prevNodes.find(pn => pn.id === n.id))
         return [...existing, ...newOnes]
       })
       setEdges(layoutedElements.edges)
@@ -227,6 +233,7 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
           change.dragging === false && 
           change.position && 
           !change.id.endsWith('-root')) {
+        console.log('[NPCTree] Saving node position:', change.id, change.position)
         if (onUpdatePosition) {
           onUpdatePosition(change.id, change.position)
         }

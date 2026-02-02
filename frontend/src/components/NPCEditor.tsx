@@ -156,6 +156,7 @@ export default function NPCEditor() {
 
   const updateNode = (nodeId: string, updates: any) => {
     if (!npc) return
+    console.log('[NPCEditor] Updating node:', nodeId, updates)
     const updatedNodes = (npc.nodes || []).map((n: any) =>
       n.id === nodeId ? { ...n, ...updates } : n
     )
@@ -334,6 +335,7 @@ export default function NPCEditor() {
                 }
               }}
               onUpdatePosition={(nodeId: string, position: any) => {
+                console.log('[NPCEditor] onUpdatePosition called:', nodeId, position)
                 updateNode(nodeId, { position })
               }}
             />
