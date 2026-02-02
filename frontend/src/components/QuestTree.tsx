@@ -171,14 +171,17 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     
     // Save positions on drag end
     changes.forEach((change: any) => {
-      if (change.type === 'position' && change.dragging === false && change.position) {
-        console.log('[QuestTree] Saving mission position:', change.id, change.position)
-        if (onUpdatePosition) {
-          onUpdatePosition(change.id, change.position)
+      if (change.type === 'position' && change.dragging === false) {
+        // Get the actual node from the nodes array to get its current position
+        // change.position might be undefined when dragging ends
+        const nodeToSave = nodes.find((n: any) => n.id === change.id)
+        if (nodeToSave?.position && onUpdatePosition) {
+          console.log('[QuestTree] Saving mission position:', change.id, nodeToSave.position)
+          onUpdatePosition(change.id, nodeToSave.position)
         }
       }
     })
-  }, [onNodesChange, onUpdatePosition])
+  }, [onNodesChange, onUpdatePosition, nodes])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
     onSelectQuest(node.id)

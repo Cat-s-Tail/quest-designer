@@ -231,15 +231,17 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
     changes.forEach((change: any) => {
       if (change.type === 'position' && 
           change.dragging === false && 
-          change.position && 
           !change.id.endsWith('-root')) {
-        console.log('[NPCTree] Saving node position:', change.id, change.position)
-        if (onUpdatePosition) {
-          onUpdatePosition(change.id, change.position)
+        // Get the actual node from the nodes array to get its current position
+        // change.position might be undefined when dragging ends
+        const nodeToSave = nodes.find((n: any) => n.id === change.id)
+        if (nodeToSave?.position && onUpdatePosition) {
+          console.log('[NPCTree] Saving node position:', change.id, nodeToSave.position)
+          onUpdatePosition(change.id, nodeToSave.position)
         }
       }
     })
-  }, [onNodesChange, onUpdatePosition])
+  }, [onNodesChange, onUpdatePosition, nodes])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
     if (node.id.endsWith('-root')) {
