@@ -10,48 +10,111 @@ export default function NPCEditor() {
   const [isSaving, setIsSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [clipboard, setClipboard] = useState<any>(null)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   const npc = selectedNPC && currentData?.npcs ? currentData.npcs.find((n: any) => n.id === selectedNPC) : null
   const node = selectedNode && npc?.nodes ? npc.nodes.find((n: any) => n.id === selectedNode) : null
 
-  // Search functionality
-  const filteredNPCs = (currentData?.npcs || []).filter((n: any) =>
-    n.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (n.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (npc?.nodes || []).some((node: any) => node.id.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  // Track mouse position
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
+  // Search functionality - search NPCs and nodes
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const results: any[] = []
+      
+      currentData?.npcs?.forEach((n: any) => {
+        // Search NPC itself
+        if (n.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (n.name || '').toLowerCase().includes(searchTerm.toLowerCase())) {
+          results.push({ type: 'npc', data: n })
+        }
+        
+        // Search nodes within NPC
+        n.nodes?.forEach((node: any) => {
+          if (node.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (node.text || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (node.code || '').toLowerCase().includes(searchTerm.toLowerCase())) {
+            results.push({ type: 'node', npc: n, data: node })
+          }
+        })
+      })
+      
+      setSearchResults(results)
+      setShowSearchDropdown(results.length > 0)
+    } else {
+      setSearchResults([])
+      setShowSearchDropdown(false)
+    }
+  }, [searchTerm, currentData])
 
   // Keyboard shortcuts for copy/paste nodes
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && node) {
         e.preventDefault()
-        setClipboard({ ...node })
+        // Store as JSON in localStorage
+        const nodeCopy = JSON.stringify(node)
+        localStorage.setItem('quest-designer-clipboard', nodeCopy)
+        localStorage.setItem('quest-designer-clipboard-type', 'node')
         setToast({ message: 'Node copied to clipboard', type: 'success' })
         setTimeout(() => setToast(null), 2000)
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard && npc) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && npc) {
         e.preventDefault()
-        const newNode = {
-          ...clipboard,
-          id: generateGUID(),
-          next: []
+        const clipboardData = localStorage.getItem('quest-designer-clipboard')
+        const clipboardType = localStorage.getItem('quest-designer-clipboard-type')
+        
+        if (clipboardData && clipboardType === 'node') {
+          const clipboard = JSON.parse(clipboardData)
+          const newNode = {
+            ...clipboard,
+            id: generateGUID(),
+            next: [],
+            // Paste at mouse position (approximate)
+            position: { 
+              x: mousePos.x - 100, 
+              y: mousePos.y - 50 
+            }
+          }
+          const updatedNodes = [...(npc.nodes || []), newNode]
+          updateNPC(npc.id, { nodes: updatedNodes })
+          setSelectedNode(newNode.id)
+          setToast({ message: 'Node pasted at cursor', type: 'success' })
+          setTimeout(() => setToast(null), 2000)
         }
-        const updatedNodes = [...(npc.nodes || []), newNode]
-        updateNPC(npc.id, { nodes: updatedNodes })
-        setSelectedNode(newNode.id)
-        setToast({ message: 'Node pasted', type: 'success' })
-        setTimeout(() => setToast(null), 2000)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [node, clipboard, npc, generateGUID, updateNPC])
+  }, [node, npc, generateGUID, updateNPC, mousePos])
 
   const handleAddNPC = () => {
     const newNPC = addNPC()
     setSelectedNPC(newNPC.id)
+  }
+
+  const handleSelectFromSearch = (result: any) => {
+    if (result.type === 'npc') {
+      setSelectedNPC(result.data.id)
+      setSelectedNode(null)
+    } else if (result.type === 'node') {
+      setSelectedNPC(result.npc.id)
+      setSelectedNode(result.data.id)
+      // Trigger focus on the node in graph
+      const event = new CustomEvent('focusNode', { detail: { nodeId: result.data.id } })
+      window.dispatchEvent(event)
+    }
+    setSearchTerm('')
+    setShowSearchDropdown(false)
   }
 
   const handleSave = async () => {
@@ -73,7 +136,8 @@ export default function NPCEditor() {
       id: generateGUID(),
       type,
       text: '',
-      next: []
+      next: [],
+      position: { x: 0, y: 0 }  // Will be auto-laid out
     }
     
     if (type === 'option') {
@@ -164,18 +228,44 @@ export default function NPCEditor() {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
           <h3 className="font-bold text-lg">NPCs</h3>
-          <input
-            type="text"
-            placeholder="Search NPCs or nodes..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-2 bg-slate-700 text-white rounded text-sm w-64"
-          />
-          {clipboard && (
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Search NPCs or nodes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+              className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+            />
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-600 rounded shadow-lg z-50 max-h-64 overflow-y-auto">
+                {searchResults.map((result: any, idx: number) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleSelectFromSearch(result)}
+                    className="p-3 hover:bg-slate-700 cursor-pointer border-b border-slate-700 last:border-b-0"
+                  >
+                    {result.type === 'npc' ? (
+                      <>
+                        <div className="font-bold text-sm text-white">{result.data.name}</div>
+                        <div className="text-xs text-slate-400">NPC • {result.data.id}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-bold text-sm text-white">[{result.data.type}] {result.data.text?.substring(0, 30) || result.data.id}</div>
+                        <div className="text-xs text-slate-400">in {result.npc.name} • {result.data.id}</div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {localStorage.getItem('quest-designer-clipboard-type') === 'node' && (
             <span className="text-xs text-slate-400">
-              📋 Node in clipboard (Ctrl+V to paste)
+              📋 Ctrl+V to paste at cursor
             </span>
           )}
         </div>
@@ -199,7 +289,7 @@ export default function NPCEditor() {
       {/* NPC List - Top */}
       <div className="bg-slate-800 rounded-lg p-4">
         <div className="flex gap-2 overflow-x-auto">
-          {filteredNPCs.map((n: any) => (
+          {(currentData?.npcs || []).map((n: any) => (
             <div
               key={n.id}
               onClick={() => setSelectedNPC(n.id)}
@@ -241,6 +331,9 @@ export default function NPCEditor() {
                   const next = (sourceNode.next || []).filter((id: string) => id !== targetId)
                   updateNode(sourceId, { next })
                 }
+              }}
+              onUpdatePosition={(nodeId: string, position: any) => {
+                updateNode(nodeId, { position })
               }}
             />
           ) : (

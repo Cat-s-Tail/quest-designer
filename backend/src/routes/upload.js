@@ -1,7 +1,7 @@
 import express from 'express'
 import archiver from 'archiver'
 import NPCFile from '../models/NPC.js'
-import QuestFile from '../models/Quest.js'
+import MissionFile from '../models/Quest.js'
 
 const router = express.Router()
 
@@ -52,44 +52,44 @@ router.post('/npcs', async (req, res) => {
 router.post('/missions', async (req, res) => {
   try {
     // Support both 'missions' and 'quests' keys for backwards compatibility
-    const quests = req.body.missions || req.body.quests
+    const missions = req.body.missions || req.body.quests
     const { filename } = req.body
     const project = req.query.project || req.body.project || 'default'
     
-    if (!quests || !Array.isArray(quests)) {
-      return res.status(400).json({ error: 'Invalid data format. Expected { quests: [...], filename: "..." } or { missions: [...] }' })
+    if (!missions || !Array.isArray(missions)) {
+      return res.status(400).json({ error: 'Invalid data format. Expected { missions: [...], filename: "..." }' })
     }
     
-    if (quests.length === 0) {
-      return res.status(400).json({ error: 'No quests to upload' })
+    if (missions.length === 0) {
+      return res.status(400).json({ error: 'No missions to upload' })
     }
 
     // Use filename from request or generate one
-    const targetFilename = filename || `quests/quests_${Date.now()}.json`
+    const targetFilename = filename || `missions/missions_${Date.now()}.json`
     
-    // Validate that each quest has an id
-    for (const quest of quests) {
-      if (!quest.id) {
-        return res.status(400).json({ error: 'All quests must have an id field' })
+    // Validate that each mission has an id
+    for (const mission of missions) {
+      if (!mission.id) {
+        return res.status(400).json({ error: 'All missions must have an id field' })
       }
     }
     
-    // Upsert the file
-    const result = await QuestFile.findOneAndUpdate(
+    // Upsert the file - always use 'missions' key
+    const result = await MissionFile.findOneAndUpdate(
       { project, filename: targetFilename },
-      { project, filename: targetFilename, quests },
+      { project, filename: targetFilename, missions },
       { upsert: true, new: true }
     )
     
     res.json({ 
       success: true, 
-      message: `Successfully uploaded ${quests.length} quests to ${targetFilename}`,
-      count: quests.length,
+      message: `Successfully uploaded ${missions.length} missions to ${targetFilename}`,
+      count: missions.length,
       filename: targetFilename
     })
   } catch (error) {
-    console.error('Error uploading quests:', error)
-    res.status(500).json({ error: 'Failed to upload quests', details: error.message })
+    console.error('Error uploading missions:', error)
+    res.status(500).json({ error: 'Failed to upload missions', details: error.message })
   }
 })
 
@@ -98,23 +98,23 @@ router.get('/stats', async (req, res) => {
   try {
     const project = req.query.project || 'default'
     
-    // Count total NPCs and Quests across all files
+    // Count total NPCs and Missions across all files
     const npcFiles = await NPCFile.find({ project }).lean()
-    const questFiles = await QuestFile.find({ project }).lean()
+    const missionFiles = await MissionFile.find({ project }).lean()
     
     const npcCount = npcFiles.reduce((sum, file) => sum + (file.npcs?.length || 0), 0)
-    const questCount = questFiles.reduce((sum, file) => sum + (file.quests?.length || 0), 0)
+    const missionCount = missionFiles.reduce((sum, file) => sum + (file.missions?.length || 0), 0)
     
     // Get list of unique projects
     const npcProjects = await NPCFile.distinct('project')
-    const questProjects = await QuestFile.distinct('project')
-    const uniqueProjects = [...new Set([...npcProjects, ...questProjects])]
+    const missionProjects = await MissionFile.distinct('project')
+    const uniqueProjects = [...new Set([...npcProjects, ...missionProjects])]
     
     res.json({
       npcs: npcCount,
-      missions: questCount,
+      missions: missionCount,
       npcFiles: npcFiles.length,
-      questFiles: questFiles.length,
+      missionFiles: missionFiles.length,
       currentProject: project,
       allProjects: uniqueProjects
     })
@@ -180,13 +180,13 @@ router.get('/export/npcs/zip', async (req, res) => {
 router.get('/export/missions', async (req, res) => {
   try {
     const project = req.query.project || 'default'
-    const files = await QuestFile.find({ project }).select('-_id -__v -createdAt -updatedAt -project').lean()
+    const files = await MissionFile.find({ project }).select('-_id -__v -createdAt -updatedAt -project').lean()
     
-    // Combine all quests from all files
-    const allQuests = files.flatMap(file => file.quests || [])
+    // Combine all missions from all files
+    const allMissions = files.flatMap(file => file.missions || [])
     
-    // Return with 'quests' key for compatibility with Unity game
-    res.json({ quests: allQuests })
+    // Return with 'missions' key
+    res.json({ missions: allMissions })
   } catch (error) {
     console.error('Error exporting missions:', error)
     res.status(500).json({ error: 'Failed to export missions', details: error.message })
@@ -197,10 +197,10 @@ router.get('/export/missions', async (req, res) => {
 router.get('/export/missions/zip', async (req, res) => {
   try {
     const project = req.query.project || 'default'
-    const files = await QuestFile.find({ project }).select('-_id -__v -createdAt -updatedAt -project').lean()
+    const files = await MissionFile.find({ project }).select('-_id -__v -createdAt -updatedAt -project').lean()
     
     if (files.length === 0) {
-      return res.status(404).json({ error: 'No quest files found for this project' })
+      return res.status(404).json({ error: 'No mission files found for this project' })
     }
 
     // Set response headers for ZIP download
@@ -218,7 +218,7 @@ router.get('/export/missions/zip', async (req, res) => {
     // Add each file
     files.forEach(file => {
       const filename = file.filename.replace(/\//g, '_').replace(/[^a-z0-9_.-]/gi, '_')
-      archive.append(JSON.stringify({ quests: file.quests }, null, 2), { name: filename })
+      archive.append(JSON.stringify({ missions: file.missions }, null, 2), { name: filename })
     })
 
     // Finalize the archive

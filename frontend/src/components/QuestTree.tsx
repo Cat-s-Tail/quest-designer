@@ -42,7 +42,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink }: any) {
+export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink, onUpdatePosition }: any) {
   const [questsVersion, setQuestsVersion] = useState(0)
 
   // Build nodes from missions/quests
@@ -53,6 +53,8 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
       
       return {
         id: quest.id,
+        // Use saved position if available
+        position: quest.position || { x: 0, y: 0 },
         data: {
           label: (
             <div className="text-center p-2">
@@ -102,7 +104,19 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
   }, [quests])
 
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
-    return getLayoutedElements(initialNodes, initialEdges, 'TB')
+    // Only auto-layout nodes that don't have saved positions
+    const nodesNeedingLayout = initialNodes.filter((n: any) => !n.position || (n.position.x === 0 && n.position.y === 0))
+    const nodesWithPosition = initialNodes.filter((n: any) => n.position && !(n.position.x === 0 && n.position.y === 0))
+    
+    if (nodesNeedingLayout.length > 0) {
+      const layouted = getLayoutedElements(nodesNeedingLayout, initialEdges, 'TB')
+      return { 
+        nodes: [...nodesWithPosition, ...layouted.nodes], 
+        edges: initialEdges 
+      }
+    }
+    
+    return { nodes: initialNodes, edges: initialEdges }
   }, [initialNodes, initialEdges])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes)
@@ -117,17 +131,47 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
   useEffect(() => {
     setNodes(prevNodes => {
       const newNodesMap = new Map(layoutedNodes.map((n: any) => [n.id, n]))
-      // Keep existing nodes with their positions
+      // Keep existing nodes with their current positions (user may have moved them)
       const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
-        const newNode = newNodesMap.get(prevNode.id)
+        const newNode = newNodesMap.get(prevNode.id)!
         return { ...newNode, position: prevNode.position }
       })
       // Add new nodes with layout positions
-      const newOnes = layoutedNodes.filter(n => !prevNodes.find(pn => pn.id === n.id))
+      const newOnes = layoutedNodes.filter((n: any) => !prevNodes.find(pn => pn.id === n.id))
       return [...existing, ...newOnes]
     })
     setEdges(layoutedEdges)
   }, [layoutedNodes, layoutedEdges, setNodes, setEdges, questsVersion])
+
+  // Listen for focus events from search
+  useEffect(() => {
+    const handleFocusMission = (e: any) => {
+      const { missionId } = e.detail
+      const node = nodes.find(n => n.id === missionId)
+      if (node) {
+        // Center on this node
+        window.dispatchEvent(new CustomEvent('reactflow-fit-view', { 
+          detail: { nodes: [node], duration: 500 } 
+        }))
+      }
+    }
+    window.addEventListener('focusMission', handleFocusMission)
+    return () => window.removeEventListener('focusMission', handleFocusMission)
+  }, [nodes])
+
+  // Save positions when nodes are dragged
+  const handleNodesChange = useCallback((changes: any) => {
+    onNodesChange(changes)
+    
+    // Save positions on drag end
+    changes.forEach((change: any) => {
+      if (change.type === 'position' && change.dragging === false && change.position) {
+        if (onUpdatePosition) {
+          onUpdatePosition(change.id, change.position)
+        }
+      }
+    })
+  }, [onNodesChange, onUpdatePosition])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
     onSelectQuest(node.id)
@@ -182,7 +226,7 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeClick={handleNodeClick}
           onEdgeClick={handleEdgeClick}

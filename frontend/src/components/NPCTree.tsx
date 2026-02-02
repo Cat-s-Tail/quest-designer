@@ -52,7 +52,7 @@ const getNodeColor = (type: string) => {
   }
 }
 
-export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, onRelink, onBreakLink }: any) {
+export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, onRelink, onBreakLink, onUpdatePosition }: any) {
   const [npcId, setNpcId] = useState(npc?.id)
 
   const initialElements = useMemo(() => {
@@ -61,9 +61,10 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
     const reactFlowNodes: any[] = []
     const reactFlowEdges: any[] = []
 
-    // Root NPC node
+    // Root NPC node (always at origin, not saved)
     reactFlowNodes.push({
       id: `${npc.id}-root`,
+      position: { x: 0, y: 0 },
       data: {
         label: (
           <div className="text-center">
@@ -101,6 +102,8 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
       
       reactFlowNodes.push({
         id: node.id,
+        // Use saved position if available
+        position: node.position || { x: 0, y: 0 },
         data: {
           label: (
             <div className="text-center">
@@ -148,8 +151,29 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
   }, [npc, selectedNode])
 
   const layoutedElements = useMemo(() => {
-    return getLayoutedElements(initialElements.nodes, initialElements.edges, 'TB')
-  }, [initialElements])
+    // Only auto-layout nodes that don't have saved positions (excluding root which always has position)
+    const nodesNeedingLayout = initialElements.nodes.filter(
+      (n: any) => n.id !== `${npc?.id}-root` && (!n.position || (n.position.x === 0 && n.position.y === 0))
+    )
+    const nodesWithPosition = initialElements.nodes.filter(
+      (n: any) => n.id === `${npc?.id}-root` || (n.position && !(n.position.x === 0 && n.position.y === 0))
+    )
+    
+    if (nodesNeedingLayout.length > 0) {
+      const layouted = getLayoutedElements(nodesNeedingLayout, initialElements.edges, 'TB')
+      // Offset layouted nodes to avoid overlap with positioned ones
+      const offsetLayouted = layouted.nodes.map((n: any) => ({
+        ...n,
+        position: { x: n.position.x + 400, y: n.position.y + 200 }
+      }))
+      return { 
+        nodes: [...nodesWithPosition, ...offsetLayouted], 
+        edges: initialElements.edges 
+      }
+    }
+    
+    return { nodes: initialElements.nodes, edges: initialElements.edges }
+  }, [initialElements, npc])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedElements.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedElements.edges)
@@ -162,7 +186,7 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
       setEdges(layoutedElements.edges)
       setNpcId(npc?.id)
     } else {
-      // Same NPC, update data but preserve positions
+      // Same NPC, update data but preserve positions (user may have dragged nodes)
       setNodes(prevNodes => {
         const newNodesMap = new Map(layoutedElements.nodes.map((n: any) => [n.id, n]))
         const existing = prevNodes.filter(pn => newNodesMap.has(pn.id)).map(prevNode => {
@@ -175,6 +199,40 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
       setEdges(layoutedElements.edges)
     }
   }, [layoutedElements, npc?.id, npcId, setNodes, setEdges])
+
+  // Listen for focus events from search
+  useEffect(() => {
+    const handleFocusNode = (e: any) => {
+      const { nodeId } = e.detail
+      const node = nodes.find(n => n.id === nodeId)
+      if (node) {
+        onSelectNode(nodeId)
+        // Center on this node - simulate fitView
+        window.dispatchEvent(new CustomEvent('reactflow-fit-view', { 
+          detail: { nodes: [node], duration: 500 } 
+        }))
+      }
+    }
+    window.addEventListener('focusNode', handleFocusNode)
+    return () => window.removeEventListener('focusNode', handleFocusNode)
+  }, [nodes, onSelectNode])
+
+  // Save positions when nodes are dragged
+  const handleNodesChange = useCallback((changes: any) => {
+    onNodesChange(changes)
+    
+    // Save positions on drag end (skip root node)
+    changes.forEach((change: any) => {
+      if (change.type === 'position' && 
+          change.dragging === false && 
+          change.position && 
+          !change.id.endsWith('-root')) {
+        if (onUpdatePosition) {
+          onUpdatePosition(change.id, change.position)
+        }
+      }
+    })
+  }, [onNodesChange, onUpdatePosition])
 
   const handleNodeClick = useCallback((_event: any, node: any) => {
     if (node.id.endsWith('-root')) {
@@ -246,7 +304,7 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange}
+          onNodesChange={handleNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeClick={handleNodeClick}
           onEdgeClick={handleEdgeClick}

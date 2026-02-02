@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/dataStore'
+import QuestTree from './QuestTree'
 import Toast from './Toast'
 
 export default function QuestEditor() {
@@ -8,45 +9,79 @@ export default function QuestEditor() {
   const [isSaving, setIsSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [clipboard, setClipboard] = useState<any>(null)
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   // Get missions from data
   const missions = currentData?.missions || []
   const mission = selectedMission ? missions.find((m: any) => m.id === selectedMission) : null
 
-  // Search functionality
-  const filteredMissions = missions.filter((m: any) => 
-    m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (m.name || m.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (m.category || '').toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Track mouse position for paste
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
+  // Search functionality with dropdown
+  useEffect(() => {
+    if (searchTerm.trim()) {
+      const results = missions.filter((m: any) => 
+        m.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (m.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      setSearchResults(results)
+      setShowSearchDropdown(results.length > 0)
+    } else {
+      setSearchResults([])
+      setShowSearchDropdown(false)
+    }
+  }, [searchTerm, missions])
 
   // Keyboard shortcuts for copy/paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'c' && mission) {
         e.preventDefault()
-        setClipboard({ ...mission })
+        // Store as JSON in localStorage
+        const missionCopy = JSON.stringify(mission)
+        localStorage.setItem('quest-designer-clipboard', missionCopy)
+        localStorage.setItem('quest-designer-clipboard-type', 'mission')
         setToast({ message: 'Mission copied to clipboard', type: 'success' })
         setTimeout(() => setToast(null), 2000)
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
         e.preventDefault()
-        const newMission = {
-          ...clipboard,
-          id: generateGUID(),
-          name: `${clipboard.name || clipboard.title} (Copy)`,
+        const clipboardData = localStorage.getItem('quest-designer-clipboard')
+        const clipboardType = localStorage.getItem('quest-designer-clipboard-type')
+        
+        if (clipboardData && clipboardType === 'mission') {
+          const clipboard = JSON.parse(clipboardData)
+          const newMission = {
+            ...clipboard,
+            id: generateGUID(),
+            name: `${clipboard.name || clipboard.title} (Copy)`,
+            // Paste at mouse position (approximate, will be adjusted in graph)
+            position: { 
+              x: mousePos.x - 200, 
+              y: mousePos.y - 100 
+            }
+          }
+          const updated = { ...currentData, missions: [...missions, newMission] }
+          saveFile(currentFile, updated)
+          setSelectedMission(newMission.id)
+          setToast({ message: 'Mission pasted at cursor', type: 'success' })
+          setTimeout(() => setToast(null), 2000)
         }
-        const updated = { ...currentData, missions: [...missions, newMission] }
-        saveFile(currentFile, updated)
-        setSelectedMission(newMission.id)
-        setToast({ message: 'Mission pasted', type: 'success' })
-        setTimeout(() => setToast(null), 2000)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mission, clipboard, currentData, currentFile, missions, generateGUID, saveFile])
+  }, [mission, currentData, currentFile, missions, generateGUID, saveFile, mousePos])
 
   const handleAddMission = () => {
     const newMission = addMission()
@@ -58,6 +93,15 @@ export default function QuestEditor() {
       deleteMission(missionId)
       setSelectedMission(null)
     }
+  }
+
+  const handleSelectFromSearch = (missionId: string) => {
+    setSelectedMission(missionId)
+    setSearchTerm('')
+    setShowSearchDropdown(false)
+    // Trigger focus on the selected mission in graph
+    const event = new CustomEvent('focusMission', { detail: { missionId } })
+    window.dispatchEvent(event)
   }
 
   const handleSave = async () => {
@@ -137,18 +181,35 @@ export default function QuestEditor() {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
           <h3 className="font-bold text-lg">Missions</h3>
-          <input
-            type="text"
-            placeholder="Search missions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-3 py-2 bg-slate-700 text-white rounded text-sm w-64"
-          />
-          {clipboard && (
+          <div className="relative flex-1 max-w-md">
+            <input
+              type="text"
+              placeholder="Search missions by ID/name/category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+              className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+            />
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div className="absolute top-full mt-1 w-full bg-slate-800 border border-slate-600 rounded shadow-lg z-50 max-h-64 overflow-y-auto">
+                {searchResults.map((m: any) => (
+                  <div
+                    key={m.id}
+                    onClick={() => handleSelectFromSearch(m.id)}
+                    className="p-3 hover:bg-slate-700 cursor-pointer border-b border-slate-700 last:border-b-0"
+                  >
+                    <div className="font-bold text-sm text-white">{m.name || m.title}</div>
+                    <div className="text-xs text-slate-400">{m.category} • {m.id}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {localStorage.getItem('quest-designer-clipboard-type') === 'mission' && (
             <span className="text-xs text-slate-400">
-              📋 Mission in clipboard (Ctrl+V to paste)
+              📋 Ctrl+V to paste at cursor
             </span>
           )}
         </div>
@@ -169,38 +230,55 @@ export default function QuestEditor() {
         </div>
       </div>
 
-      {/* Mission List and Editor */}
+      {/* Mission Graph and Detail Editor */}
       <div className="flex gap-4">
-        {/* Mission List - Left */}
-        <div className="flex-[1] bg-slate-800 rounded-lg p-4 space-y-2" style={{ height: '600px', overflowY: 'auto' }}>
-          <h4 className="font-bold text-slate-300 mb-2">Missions ({filteredMissions.length})</h4>
-          {filteredMissions.map((m: any) => (
-            <div
-              key={m.id}
-              onClick={() => setSelectedMission(m.id)}
-              className={`p-3 rounded cursor-pointer transition ${
-                selectedMission === m.id ? 'bg-blue-600' : 'bg-slate-700 hover:bg-slate-600'
-              }`}
-            >
-              <div className="font-bold text-sm">{m.name || m.title}</div>
-              <div className="text-xs text-slate-400">{m.category}</div>
-              <div className="text-xs text-slate-500">{m.id}</div>
-            </div>
-          ))}
+        {/* Mission Graph - Left */}
+        <div className="flex-[2] bg-slate-800 rounded-lg overflow-hidden" style={{ height: '600px' }}>
+          <QuestTree
+            quests={missions}
+            selectedQuest={selectedMission}
+            onSelectQuest={setSelectedMission}
+            onAddQuest={handleAddMission}
+            onRelink={(sourceId: string, targetId: string, isBreaking?: boolean) => {
+              const sourceMission = missions.find((m: any) => m.id === sourceId)
+              if (sourceMission) {
+                if (isBreaking) {
+                  // Remove unlock
+                  const unlocks = (sourceMission.unlocks || []).filter((id: string) => id !== targetId)
+                  updateMission(sourceId, { unlocks })
+                } else {
+                  // Add unlock
+                  const unlocks = [...(sourceMission.unlocks || [])]
+                  if (!unlocks.includes(targetId)) {
+                    unlocks.push(targetId)
+                    updateMission(sourceId, { unlocks })
+                  }
+                }
+              }
+            }}
+            onUpdatePosition={(missionId: string, position: any) => {
+              updateMission(missionId, { position })
+            }}
+          />
         </div>
 
         {/* Detail Editor - Right */}
-        {mission && (
-          <div className="flex-[2] bg-slate-800 rounded-lg p-4 space-y-4 overflow-y-auto" style={{ height: '600px' }}>
-            <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-              <h4 className="font-bold text-slate-300">Edit Mission</h4>
-              <button
-                onClick={() => handleDeleteMission(mission.id)}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
-              >
-                Delete Mission
-              </button>
+        <div className="flex-[1] bg-slate-800 rounded-lg p-4 space-y-4 overflow-y-auto" style={{ height: '600px' }}>
+          {!mission ? (
+            <div className="text-slate-400 text-center mt-10">
+              Select a mission to edit
             </div>
+          ) : (
+            <>
+              <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h4 className="font-bold text-slate-300">Edit Mission</h4>
+                <button
+                  onClick={() => handleDeleteMission(mission.id)}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm"
+                >
+                  Delete
+                </button>
+              </div>
 
             {/* ID */}
             <div>
@@ -404,8 +482,9 @@ export default function QuestEditor() {
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm"
               />
             </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
