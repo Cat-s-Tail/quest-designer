@@ -46,7 +46,8 @@ const MissionItemSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: () => ({})
   },
-  unlocks: [{
+  // Mission connections for visual editor (for readability only, not used by Unity)
+  next: [{
     type: String
   }],
   

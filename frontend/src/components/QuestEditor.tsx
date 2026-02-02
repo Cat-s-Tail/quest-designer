@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/dataStore'
 import QuestTree from './QuestTree'
+import LuaEditor from './LuaEditor'
 import Toast from './Toast'
 
 export default function QuestEditor() {
@@ -243,15 +244,15 @@ export default function QuestEditor() {
               const sourceMission = missions.find((m: any) => m.id === sourceId)
               if (sourceMission) {
                 if (isBreaking) {
-                  // Remove unlock
-                  const unlocks = (sourceMission.unlocks || []).filter((id: string) => id !== targetId)
-                  updateMission(sourceId, { unlocks })
+                  // Remove next
+                  const next = (sourceMission.next || []).filter((id: string) => id !== targetId)
+                  updateMission(sourceId, { next })
                 } else {
-                  // Add unlock
-                  const unlocks = [...(sourceMission.unlocks || [])]
-                  if (!unlocks.includes(targetId)) {
-                    unlocks.push(targetId)
-                    updateMission(sourceId, { unlocks })
+                  // Add next
+                  const next = [...(sourceMission.next || [])]
+                  if (!next.includes(targetId)) {
+                    next.push(targetId)
+                    updateMission(sourceId, { next })
                   }
                 }
               }
@@ -323,14 +324,13 @@ export default function QuestEditor() {
 
             {/* Can Unlock - Lua Expression */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">
+              <label className="block text-sm text-slate-400 mb-2">
                 Can Unlock (Lua Expression)
               </label>
-              <textarea
+              <LuaEditor
                 value={mission.canUnlock || 'true'}
-                onChange={(e) => updateMission(mission.id, { canUnlock: e.target.value })}
-                placeholder="var.level >= 5"
-                className="w-full px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm h-16"
+                onChange={(value) => updateMission(mission.id, { canUnlock: value })}
+                height="120px"
               />
               <div className="text-xs text-slate-500 mt-1">
                 Lua expression that returns true/false to determine if mission can be unlocked
@@ -438,27 +438,29 @@ export default function QuestEditor() {
 
             {/* OnEvent Scripts */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">
+              <label className="block text-sm text-slate-400 mb-2">
                 OnEvent Scripts ({mission.onEvent?.length || 0})
               </label>
               <div className="text-xs text-slate-500 mb-2">
-                Array of Lua scripts executed sequentially when events occur. Use @filename for references.
+                Array of Lua scripts executed sequentially when events occur. Use @filename for file references.
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {(mission.onEvent || []).map((script: string, idx: number) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
+                  <div key={idx} className="bg-slate-700 rounded p-3 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-slate-300">Script {idx + 1}</span>
+                      <button
+                        onClick={() => deleteEventScript(idx)}
+                        className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                      >
+                        ✕ Delete
+                      </button>
+                    </div>
+                    <LuaEditor
                       value={script}
-                      onChange={(e) => updateEventScript(idx, e.target.value)}
-                      placeholder="@mission_evaluate_standard"
-                      className="flex-1 px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm"
+                      onChange={(value) => updateEventScript(idx, value)}
+                      height="150px"
                     />
-                    <button
-                      onClick={() => deleteEventScript(idx)}
-                      className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded text-sm"
-                    >
-                      ✕
-                    </button>
                   </div>
                 ))}
                 <button
@@ -470,17 +472,20 @@ export default function QuestEditor() {
               </div>
             </div>
 
-            {/* Unlocks */}
+            {/* Next Missions */}
             <div>
-              <label className="block text-sm text-slate-400 mb-1">Unlocks (comma-separated IDs)</label>
+              <label className="block text-sm text-slate-400 mb-1">Next Missions (for readability, comma-separated IDs)</label>
               <input
-                value={(mission.unlocks || []).join(', ')}
+                value={(mission.next || []).join(', ')}
                 onChange={(e) => updateMission(mission.id, { 
-                  unlocks: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
+                  next: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
                 })}
                 placeholder="mission_2, mission_3"
                 className="w-full px-3 py-2 bg-slate-700 text-white rounded font-mono text-sm"
               />
+              <div className="text-xs text-slate-500 mt-1">
+                Visual connection only - no functional purpose in Unity
+              </div>
             </div>
             </>
           )}

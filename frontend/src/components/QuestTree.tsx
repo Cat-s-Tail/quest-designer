@@ -79,19 +79,19 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
     })
   }, [quests, selectedQuest])
 
-  // Build edges from unlocks
+  // Build edges from next
   const initialEdges = useMemo(() => {
     const edges: any[] = []
     quests.forEach((quest: any) => {
-      if (quest.unlocks && Array.isArray(quest.unlocks)) {
-        quest.unlocks.forEach((unlockedId: string) => {
+      if (quest.next && Array.isArray(quest.next)) {
+        quest.next.forEach((nextId: string) => {
           edges.push({
-            id: `${quest.id}->${unlockedId}`,
+            id: `${quest.id}->${nextId}`,
             source: quest.id,
-            target: unlockedId,
+            target: nextId,
             animated: true,
             style: { stroke: '#60a5fa', strokeWidth: 2 },
-            label: 'unlocks',
+            label: 'next',
             labelStyle: { fill: '#fff', fontSize: 11, fontWeight: 'bold' },
             labelBgStyle: { fill: '#1e3a8a', fillOpacity: 0.8 },
             labelBgPadding: [4, 4],

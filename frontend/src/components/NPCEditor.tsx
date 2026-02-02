@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useDataStore } from '@/store/dataStore'
 import NPCTree from './NPCTree'
+import LuaEditor from './LuaEditor'
 import Toast from './Toast'
 
 export default function NPCEditor() {
@@ -514,15 +515,13 @@ export default function NPCEditor() {
               {/* Option: canShow */}
               {node.type === 'option' && (
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-xs text-slate-500 mb-2">
                     Can Show (Lua Expression)
                   </label>
-                  <textarea
+                  <LuaEditor
                     value={node.canShow || 'true'}
-                    onChange={(e) => updateNode(node.id, { canShow: e.target.value })}
-                    placeholder="var.level >= 5"
-                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm font-mono"
-                    rows={2}
+                    onChange={(value) => updateNode(node.id, { canShow: value })}
+                    height="100px"
                   />
                 </div>
               )}
@@ -543,15 +542,13 @@ export default function NPCEditor() {
               {/* Instruction: code */}
               {node.type === 'instruction' && (
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label className="block text-xs text-slate-500 mb-2">
                     Code (Lua) - can use @filename
                   </label>
-                  <textarea
+                  <LuaEditor
                     value={node.code || ''}
-                    onChange={(e) => updateNode(node.id, { code: e.target.value })}
-                    placeholder="var.gold = var.gold + 100"
-                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm font-mono"
-                    rows={4}
+                    onChange={(value) => updateNode(node.id, { code: value })}
+                    height="200px"
                   />
                 </div>
               )}
