@@ -42,20 +42,7 @@ export default function ItemsPage() {
       const res = await fetch(`${API_URL}/api/items/files/${filename}?project=${currentProject}`)
       const data = await res.json()
       setCurrentFile(filename)
-      
-      // Clean up items: remove stackable boolean, ensure maxStack
-      let items = data.items || []
-      items = items.map((item: any) => {
-        const cleaned = { ...item }
-        delete cleaned.stackable
-        // Ensure maxStack is set
-        if (!cleaned.maxStack || cleaned.maxStack < 1) {
-          cleaned.maxStack = 1
-        }
-        return cleaned
-      })
-      
-      setItems(items)
+      setItems(data.items || [])
     } catch (error) {
       console.error('Error loading file:', error)
       setItems([])

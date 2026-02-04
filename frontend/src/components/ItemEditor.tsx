@@ -40,6 +40,7 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
       type: 'generic',
       size: [1, 1],
       weight: 1.0,
+      stackable: false,
       maxStack: 1,
       fractional: false,
       maxDurability: -1,
@@ -75,6 +76,25 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
           }
         })
       }
+      
+      // 验证并修正 stackable/durability 互斥规则
+      items.forEach((item: any) => {
+        const updates: any = {}
+        if (item.stackable) {
+          // Stackable: durability 必须是 -1
+          if (item.maxDurability !== -1) {
+            updates.maxDurability = -1
+          }
+        } else {
+          // Not stackable: maxStack 必须是 1
+          if (item.maxStack !== 1) {
+            updates.maxStack = 1
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          onUpdate(item.id, updates)
+        }
+      })
       
       // 等待一小段时间确保状态更新
       await new Promise(resolve => setTimeout(resolve, 50))
@@ -318,34 +338,51 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Max Stack (1 = not stackable)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.maxStack || 1}
-                    onChange={(e) => {
-                      const newMaxStack = Math.max(1, parseInt(e.target.value) || 1)
-                      onUpdate(item.id, { maxStack: newMaxStack })
-                    }}
-                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">
-                    {(item.maxStack || 1) > 1 ? 'Fractional (decimal amounts)' : 'Max Durability (-1 = none)'}
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.stackable || false}
+                      onChange={(e) => {
+                        const isStackable = e.target.checked
+                        if (isStackable) {
+                          // Stackable: set durability to -1, ensure maxStack > 1
+                          onUpdate(item.id, { 
+                            stackable: true, 
+                            maxDurability: -1,
+                            maxStack: Math.max(item.maxStack || 1, 1)
+                          })
+                        } else {
+                          // Not stackable: set maxStack to 1
+                          onUpdate(item.id, { 
+                            stackable: false, 
+                            maxStack: 1 
+                          })
+                        }
+                      }}
+                    />
+                    Stackable
                   </label>
-                  {(item.maxStack || 1) > 1 ? (
-                    <div className="flex items-center h-full">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={item.fractional || false}
-                          onChange={(e) => onUpdate(item.id, { fractional: e.target.checked })}
-                        />
-                        Allow fractional
-                      </label>
-                    </div>
-                  ) : (
+                </div>
+                {item.stackable ? (
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Max Stack</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step={item.fractional ? "0.1" : "1"}
+                      value={item.maxStack || 1}
+                      onChange={(e) => {
+                        const value = item.fractional 
+                          ? parseFloat(e.target.value) 
+                          : Math.round(parseFloat(e.target.value))
+                        onUpdate(item.id, { maxStack: Math.max(1, value || 1) })
+                      }}
+                      className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Max Durability (-1 = none)</label>
                     <input
                       type="number"
                       step="0.1"
@@ -353,9 +390,30 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
                       onChange={(e) => onUpdate(item.id, { maxDurability: parseFloat(e.target.value) })}
                       className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+
+              {item.stackable && (
+                <div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={item.fractional || false}
+                      onChange={(e) => {
+                        const isFractional = e.target.checked
+                        const updates: any = { fractional: isFractional }
+                        // 如果取消 fractional，将 maxStack 四舍五入为整数
+                        if (!isFractional && item.maxStack) {
+                          updates.maxStack = Math.round(item.maxStack)
+                        }
+                        onUpdate(item.id, updates)
+                      }}
+                    />
+                    Fractional (allow decimal amounts like 0.5)
+                  </label>
+                </div>
+              )}
 
               {/* Actions */}
               <div>

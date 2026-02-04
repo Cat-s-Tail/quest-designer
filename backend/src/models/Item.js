@@ -50,6 +50,10 @@ const ItemDefinitionSchema = new mongoose.Schema({
     type: Number,
     default: 1.0
   },
+  stackable: {
+    type: Boolean,
+    default: false
+  },
   maxStack: {
     type: Number,
     default: 1
