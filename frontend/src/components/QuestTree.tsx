@@ -42,7 +42,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink, onUpdatePosition }: any) {
+export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQuest, onRelink, onUpdatePosition, onGetAllPositions }: any) {
   const [questsVersion, setQuestsVersion] = useState(0)
 
   // Build nodes from missions/quests
@@ -121,6 +121,20 @@ export default function QuestTree({ quests, selectedQuest, onSelectQuest, onAddQ
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges)
+
+  // 暴露获取所有节点位置的函数
+  useEffect(() => {
+    if (onGetAllPositions) {
+      const getPositions = () => {
+        const positions = new Map<string, { x: number; y: number }>()
+        nodes.forEach(node => {
+          positions.set(node.id, node.position)
+        })
+        return positions
+      }
+      onGetAllPositions(getPositions)
+    }
+  }, [nodes, onGetAllPositions])
 
   // Track quest count to detect additions/deletions
   useEffect(() => {

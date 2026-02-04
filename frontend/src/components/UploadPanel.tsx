@@ -18,10 +18,24 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
 
   const loadStats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/upload/stats`, {
-        params: { project: currentProject }
+      const [uploadStats, itemFilesRes, containerFilesRes] = await Promise.all([
+        axios.get(`${API_URL}/api/upload/stats`, { params: { project: currentProject } }),
+        axios.get(`${API_URL}/api/items/files`, { params: { project: currentProject } }),
+        axios.get(`${API_URL}/api/containers/files`, { params: { project: currentProject } })
+      ])
+      
+      const itemFiles = itemFilesRes.data.files || []
+      const containerFiles = containerFilesRes.data.files || []
+      const totalItems = itemFiles.reduce((sum: number, f: any) => sum + (f.items?.length || 0), 0)
+      const totalContainers = containerFiles.reduce((sum: number, f: any) => sum + (f.containers?.length || 0), 0)
+      
+      setStats({
+        ...uploadStats.data,
+        items: totalItems,
+        containers: totalContainers,
+        itemFiles: itemFiles.length,
+        containerFiles: containerFiles.length
       })
-      setStats(response.data)
     } catch (error) {
       console.error('Error loading stats:', error)
     }
@@ -42,22 +56,40 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const text = await file.text()
       const data = JSON.parse(text)
 
-      // Preserve original filename - prefix with type folder
-      const originalFilename = file.name
-      const filename = type === 'npcs' 
-        ? `npcs/${originalFilename}` 
-        : `quests/${originalFilename}`
-      const payload = { ...data, filename }
+      if (type === 'items' || type === 'containers') {
+        // For items/containers, use new API
+        const endpoint = type === 'items' ? '/api/items/files' : '/api/containers/files'
+        const filename = file.name
+        const payload = type === 'items' 
+          ? { filename, items: data }
+          : { filename, containers: data }
+        
+        await axios.post(`${API_URL}${endpoint}`, payload, {
+          params: { project: currentProject }
+        })
+        
+        setMessage({
+          type: 'success',
+          text: `Successfully uploaded ${type} file: ${filename}`
+        })
+      } else {
+        // Original logic for NPCs/Missions
+        const originalFilename = file.name
+        const filename = type === 'npcs' 
+          ? `npcs/${originalFilename}` 
+          : `quests/${originalFilename}`
+        const payload = { ...data, filename }
 
-      const endpoint = type === 'npcs' ? '/api/upload/npcs' : '/api/upload/missions'
-      const response = await axios.post(`${API_URL}${endpoint}`, payload, {
-        params: { project: currentProject }
-      })
+        const endpoint = type === 'npcs' ? '/api/upload/npcs' : '/api/upload/missions'
+        const response = await axios.post(`${API_URL}${endpoint}`, payload, {
+          params: { project: currentProject }
+        })
 
-      setMessage({
-        type: 'success',
-        text: response.data.message || `Successfully uploaded ${type}`
-      })
+        setMessage({
+          type: 'success',
+          text: response.data.message || `Successfully uploaded ${type}`
+        })
+      }
 
       // Reload stats
       await loadStats()
@@ -80,10 +112,30 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
     setMessage(null)
 
     try {
-      const endpoint = type === 'npcs' ? '/api/upload/export/npcs' : '/api/upload/export/missions'
-      const response = await axios.get(`${API_URL}${endpoint}`, {
-        params: { project: currentProject }
-      })
+      let response
+      let filename
+      
+      if (type === 'items' || type === 'containers') {
+        // For items/containers, get all files and merge them
+        const endpoint = type === 'items' ? '/api/items/files' : '/api/containers/files'
+        const filesRes = await axios.get(`${API_URL}${endpoint}`, {
+          params: { project: currentProject }
+        })
+        
+        const files = filesRes.data.files || []
+        const allData = type === 'items'
+          ? files.flatMap((f: any) => f.items || [])
+          : files.flatMap((f: any) => f.containers || [])
+        
+        response = { data: allData }
+        filename = `${type}_${currentProject}.json`
+      } else {
+        const endpoint = type === 'npcs' ? '/api/upload/export/npcs' : '/api/upload/export/missions'
+        response = await axios.get(`${API_URL}${endpoint}`, {
+          params: { project: currentProject }
+        })
+        filename = `${type}_${currentProject}.json`
+      }
 
       // Create a blob and download the file
       const jsonString = JSON.stringify(response.data, null, 2)
@@ -91,7 +143,7 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `${type}_${currentProject}.json`
+      link.download = filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -169,7 +221,9 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
               <span className="font-semibold">Project: {currentProject}</span>
               <br />
               <span className="font-semibold">{stats.npcs} NPCs</span>,{' '}
-              <span className="font-semibold">{stats.missions} Missions</span>
+              <span className="font-semibold">{stats.missions} Missions</span>,{' '}
+              <span className="font-semibold">{stats.items} Items</span>,{' '}
+              <span className="font-semibold">{stats.containers} Containers</span>
             </p>
           </div>
         )}
@@ -188,7 +242,7 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
 
         <div className="flex mb-4 border-b">
           <button
-            className={`flex-1 py-2 px-4 font-medium ${
+            className={`flex-1 py-2 px-4 font-medium text-sm ${
               activeTab === 'npcs'
                 ? 'border-b-2 border-blue-500 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
@@ -199,7 +253,7 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
             NPCs
           </button>
           <button
-            className={`flex-1 py-2 px-4 font-medium ${
+            className={`flex-1 py-2 px-4 font-medium text-sm ${
               activeTab === 'missions'
                 ? 'border-b-2 border-blue-500 text-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
@@ -208,6 +262,28 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
             disabled={uploading || exporting}
           >
             Missions
+          </button>
+          <button
+            className={`flex-1 py-2 px-4 font-medium text-sm ${
+              activeTab === 'items'
+                ? 'border-b-2 border-green-500 text-green-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('items')}
+            disabled={uploading || exporting}
+          >
+            Items
+          </button>
+          <button
+            className={`flex-1 py-2 px-4 font-medium text-sm ${
+              activeTab === 'containers'
+                ? 'border-b-2 border-fuchsia-500 text-fuchsia-600'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            onClick={() => setActiveTab('containers')}
+            disabled={uploading || exporting}
+          >
+            Containers
           </button>
         </div>
 
@@ -328,6 +404,94 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
                 <p className="text-xs text-gray-500 mt-2">
                   JSON: All missions in one file. ZIP: One file per mission.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'items' && (
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Upload Items</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Upload a JSON file containing item definitions (array format).
+              </p>
+              <label className="block">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleFileUpload(e, 'items')}
+                  disabled={uploading || exporting}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-green-50 file:text-green-700
+                    hover:file:bg-green-100
+                    disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-2">
+                Expected format: Array of item definitions {`[{...}, {...}]`}
+              </p>
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="font-semibold text-gray-700 mb-2">Export Items</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Download all items from the database.
+                </p>
+                <button
+                  onClick={() => handleExport('items')}
+                  disabled={uploading || exporting || (stats && stats.items === 0)}
+                  className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export Items JSON
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'containers' && (
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Upload Containers</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Upload a JSON file containing container definitions (array format).
+              </p>
+              <label className="block">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleFileUpload(e, 'containers')}
+                  disabled={uploading || exporting}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-fuchsia-50 file:text-fuchsia-700
+                    hover:file:bg-fuchsia-100
+                    disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </label>
+              <p className="text-xs text-gray-500 mt-2">
+                Expected format: Array of container definitions {`[{...}, {...}]`}
+              </p>
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h3 className="font-semibold text-gray-700 mb-2">Export Containers</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Download all containers from the database.
+                </p>
+                <button
+                  onClick={() => handleExport('containers')}
+                  disabled={uploading || exporting || (stats && stats.containers === 0)}
+                  className="w-full py-2 px-4 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export Containers JSON
+                </button>
               </div>
             </div>
           )}

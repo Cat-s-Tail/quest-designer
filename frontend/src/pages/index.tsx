@@ -103,6 +103,16 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-white mb-2">Mission Editor</h2>
             <p className="text-slate-200">Design mission chains and objectives with AND/OR logic</p>
           </a>
+
+          <a href="/editor/items" className="p-8 bg-gradient-to-br from-green-600 to-green-700 rounded-lg hover:from-green-500 hover:to-green-600 transition transform hover:scale-105">
+            <h2 className="text-3xl font-bold text-white mb-2">Item Editor</h2>
+            <p className="text-slate-200">Define items with Lua-powered actions and custom properties</p>
+          </a>
+
+          <a href="/editor/containers" className="p-8 bg-gradient-to-br from-fuchsia-600 to-fuchsia-700 rounded-lg hover:from-fuchsia-500 hover:to-fuchsia-600 transition transform hover:scale-105">
+            <h2 className="text-3xl font-bold text-white mb-2">Container Editor</h2>
+            <p className="text-slate-200">Design inventory containers with customizable sections</p>
+          </a>
         </div>
       </div>
 
@@ -117,7 +127,7 @@ export default function Home() {
               Are you sure you want to clear ALL data for project "<span className="font-bold text-yellow-400">{displayProject}</span>"?
             </p>
             <p className="text-slate-400 mb-6">
-              This will delete all NPCs and Missions permanently. This action cannot be undone.
+              This will delete all NPCs, Missions, Items, and Containers permanently. This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
@@ -153,7 +163,7 @@ export default function Home() {
             </p>
             <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded p-4 mb-6">
               <p className="text-red-300 text-sm">
-                ⚠️ All NPCs, Missions, dialog trees, and quest data will be lost forever.
+                ⚠️ All NPCs, Missions, Items, Containers, dialog trees, and quest data will be lost forever.
               </p>
             </div>
             <div className="flex gap-3">

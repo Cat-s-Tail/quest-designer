@@ -14,6 +14,8 @@ export default function NPCEditor() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [getAllNPCPositionsRef, setGetAllNPCPositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
+  const [getAllNodePositionsRef, setGetAllNodePositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
 
   const npc = selectedNPC && currentData?.npcs ? currentData.npcs.find((n: any) => n.id === selectedNPC) : null
   const node = selectedNode && npc?.nodes ? npc.nodes.find((n: any) => n.id === selectedNode) : null
@@ -121,10 +123,30 @@ export default function NPCEditor() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // 保存前从 DialogTree 获取所有 node 位置
+      if (getAllNodePositionsRef && typeof getAllNodePositionsRef === 'function' && npc) {
+        const allNodePositions = getAllNodePositionsRef()
+        const updatedNodes = npc.nodes?.map((node: any) => {
+          const position = allNodePositions.get(node.id)
+          if (position && (node.position?.x !== position.x || node.position?.y !== position.y)) {
+            return { ...node, position }
+          }
+          return node
+        })
+        if (updatedNodes) {
+          updateNPC(npc.id, { nodes: updatedNodes })
+        }
+      }
+      
+      // 等待一小段时间确保状态更新
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
       await saveFile(currentFile, currentData)
       setToast({ message: 'Saved successfully!', type: 'success' })
+      setTimeout(() => setToast(null), 2000)
     } catch (error) {
       setToast({ message: `Error saving: ${error instanceof Error ? error.message : String(error)}`, type: 'error' })
+      setTimeout(() => setToast(null), 3000)
     } finally {
       setIsSaving(false)
     }
@@ -239,6 +261,11 @@ export default function NPCEditor() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                }
+              }}
               className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
             />
             {showSearchDropdown && searchResults.length > 0 && (
@@ -338,6 +365,7 @@ export default function NPCEditor() {
                 console.log('[NPCEditor] onUpdatePosition called:', nodeId, position)
                 updateNode(nodeId, { position })
               }}
+              onGetAllPositions={setGetAllNodePositionsRef}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-slate-400">

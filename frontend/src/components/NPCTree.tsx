@@ -52,7 +52,7 @@ const getNodeColor = (type: string) => {
   }
 }
 
-export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, onRelink, onBreakLink, onUpdatePosition }: any) {
+export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, onRelink, onBreakLink, onUpdatePosition, onGetAllPositions }: any) {
   const [npcId, setNpcId] = useState(npc?.id)
 
   const initialElements = useMemo(() => {
@@ -177,6 +177,31 @@ export default function NPCTree({ npc, selectedNode, onSelectNode, onAddNode, on
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedElements.nodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedElements.edges)
+
+  // 暴露获取所有节点位置的函数
+  useEffect(() => {
+    if (onGetAllPositions) {
+      const getPositions = () => {
+        const positions = new Map<string, { x: number; y: number }>()
+        nodes.forEach(node => {
+          positions.set(node.id, node.position)
+        })
+        return positions
+      }
+      onGetAllPositions(getPositions)
+    }
+  }, [nodes, onGetAllPositions])
+  useEffect(() => {
+    if (onGetAllPositions) {
+      onGetAllPositions(() => {
+        const positions = new Map<string, { x: number; y: number }>()
+        nodes.forEach(node => {
+          positions.set(node.id, node.position)
+        })
+        return positions
+      })
+    }
+  }, [nodes, onGetAllPositions])
 
   // Only re-layout when switching NPCs, otherwise preserve positions
   useEffect(() => {

@@ -7,6 +7,8 @@ import { fileURLToPath } from 'url'
 import { connectToDatabase, closeDatabase } from './config/database.js'
 import uploadRoutes from './routes/upload.js'
 import filesRoutes from './routes/files.js'
+import itemsRoutes from './routes/items.js'
+import containersRoutes from './routes/containers.js'
 
 dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
@@ -28,16 +30,16 @@ const corsOptions = {
 // Rate limiting configuration
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 100, // 增加到 100 次/分钟
   message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 })
 
 // Stricter rate limit for upload endpoints
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: 50, // 增加到 50 次/分钟
   message: 'Too many uploads from this IP, please try again later.',
 })
 
@@ -53,6 +55,8 @@ app.use('/api/upload', uploadLimiter)
 // Routes
 app.use('/api/upload', uploadRoutes)
 app.use('/api/files', filesRoutes)
+app.use('/api/items', itemsRoutes)
+app.use('/api/containers', containersRoutes)
 
 // Health check
 app.get('/health', (req, res) => {

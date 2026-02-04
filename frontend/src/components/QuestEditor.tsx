@@ -13,6 +13,7 @@ export default function QuestEditor() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [getAllPositionsRef, setGetAllPositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
 
   // Get missions from data
   const missions = currentData?.missions || []
@@ -108,10 +109,27 @@ export default function QuestEditor() {
   const handleSave = async () => {
     setIsSaving(true)
     try {
+      // 保存前从 Tree 获取所有节点的当前位置
+      if (getAllPositionsRef && typeof getAllPositionsRef === 'function') {
+        const allPositions = getAllPositionsRef()
+        allPositions.forEach((position, missionId) => {
+          const mission = missions.find((m: any) => m.id === missionId)
+          // 只有当位置不同时才更新
+          if (mission && (mission.position?.x !== position.x || mission.position?.y !== position.y)) {
+            updateMission(missionId, { position })
+          }
+        })
+      }
+      
+      // 等待一小段时间确保状态更新
+      await new Promise(resolve => setTimeout(resolve, 50))
+      
       await saveFile(currentFile, currentData)
       setToast({ message: 'Saved successfully!', type: 'success' })
+      setTimeout(() => setToast(null), 2000)
     } catch (error) {
       setToast({ message: `Error saving: ${error instanceof Error ? error.message : String(error)}`, type: 'error' })
+      setTimeout(() => setToast(null), 3000)
     } finally {
       setIsSaving(false)
     }
@@ -191,6 +209,11 @@ export default function QuestEditor() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                }
+              }}
               className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
             />
             {showSearchDropdown && searchResults.length > 0 && (
@@ -258,8 +281,10 @@ export default function QuestEditor() {
               }
             }}
             onUpdatePosition={(missionId: string, position: any) => {
+              // 立即更新到数据中
               updateMission(missionId, { position })
             }}
+            onGetAllPositions={setGetAllPositionsRef}
           />
         </div>
 
