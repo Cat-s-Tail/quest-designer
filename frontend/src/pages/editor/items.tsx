@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function ItemsPage() {
   const router = useRouter()
-  const [currentProject, setCurrentProject] = useState('default')
+  const [currentProject, _setCurrentProject] = useState('default')
   const [currentFile, setCurrentFile] = useState('')
   const [files, setFiles] = useState<any[]>([])
   const [items, setItems] = useState<any[]>([])
@@ -42,7 +42,20 @@ export default function ItemsPage() {
       const res = await fetch(`${API_URL}/api/items/files/${filename}?project=${currentProject}`)
       const data = await res.json()
       setCurrentFile(filename)
-      setItems(data.items || [])
+      
+      // Clean up items: remove stackable boolean, ensure maxStack
+      let items = data.items || []
+      items = items.map((item: any) => {
+        const cleaned = { ...item }
+        delete cleaned.stackable
+        // Ensure maxStack is set
+        if (!cleaned.maxStack || cleaned.maxStack < 1) {
+          cleaned.maxStack = 1
+        }
+        return cleaned
+      })
+      
+      setItems(items)
     } catch (error) {
       console.error('Error loading file:', error)
       setItems([])

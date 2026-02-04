@@ -54,7 +54,27 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
 
     try {
       const text = await file.text()
-      const data = JSON.parse(text)
+      let data = JSON.parse(text)
+
+      if (type === 'items') {
+        // Convert items: remove stackable boolean, derive from maxStack
+        if (Array.isArray(data)) {
+          data = data.map((item: any) => {
+            const converted = { ...item }
+            // Remove stackable if present
+            delete converted.stackable
+            // If maxStack is not set but stackable was true, set maxStack
+            if (item.stackable === true && (!converted.maxStack || converted.maxStack === 1)) {
+              converted.maxStack = 99 // Default stack size for stackable items
+            }
+            // Ensure maxStack is at least 1
+            if (!converted.maxStack || converted.maxStack < 1) {
+              converted.maxStack = 1
+            }
+            return converted
+          })
+        }
+      }
 
       if (type === 'items' || type === 'containers') {
         // For items/containers, use new API
@@ -123,9 +143,18 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
         })
         
         const files = filesRes.data.files || []
-        const allData = type === 'items'
+        let allData = type === 'items'
           ? files.flatMap((f: any) => f.items || [])
           : files.flatMap((f: any) => f.containers || [])
+        
+        // Clean up items: remove stackable boolean if present
+        if (type === 'items' && Array.isArray(allData)) {
+          allData = allData.map((item: any) => {
+            const cleaned = { ...item }
+            delete cleaned.stackable // Remove stackable, Unity derives from maxStack
+            return cleaned
+          })
+        }
         
         response = { data: allData }
         filename = `${type}_${currentProject}.json`

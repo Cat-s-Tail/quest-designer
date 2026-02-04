@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 export default function ContainersPage() {
   const router = useRouter()
-  const [currentProject, setCurrentProject] = useState('default')
+  const [currentProject, _setCurrentProject] = useState('default')
   const [currentFile, setCurrentFile] = useState('')
   const [files, setFiles] = useState<any[]>([])
   const [containers, setContainers] = useState<any[]>([])

@@ -42,7 +42,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function ItemTree({ items, selectedItem, onSelectItem, onAddItem, onRelink, onUpdatePosition, onGetAllPositions }: any) {
+export default function ItemTree({ items, selectedItem, onSelectItem, onAddItem: _onAddItem, onRelink, onUpdatePosition, onGetAllPositions }: any) {
   const [itemsVersion, setItemsVersion] = useState(0)
 
   // Build nodes from items

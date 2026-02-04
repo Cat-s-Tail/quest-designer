@@ -14,7 +14,7 @@ export default function NPCEditor() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
-  const [getAllNPCPositionsRef, setGetAllNPCPositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
+  const [_getAllNPCPositionsRef, _setGetAllNPCPositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
   const [getAllNodePositionsRef, setGetAllNodePositionsRef] = useState<(() => Map<string, { x: number; y: number }>) | null>(null)
 
   const npc = selectedNPC && currentData?.npcs ? currentData.npcs.find((n: any) => n.id === selectedNPC) : null

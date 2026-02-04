@@ -42,7 +42,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = 'TB') => {
   return { nodes: newNodes, edges }
 }
 
-export default function ContainerTree({ containers, selectedContainer, onSelectContainer, onAddContainer, onRelink, onUpdatePosition, onGetAllPositions }: any) {
+export default function ContainerTree({ containers, selectedContainer, onSelectContainer, onAddContainer: _onAddContainer, onRelink, onUpdatePosition, onGetAllPositions }: any) {
   const [containersVersion, setContainersVersion] = useState(0)
 
   // Build nodes from containers

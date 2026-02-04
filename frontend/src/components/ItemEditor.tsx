@@ -40,7 +40,6 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
       type: 'generic',
       size: [1, 1],
       weight: 1.0,
-      stackable: false,
       maxStack: 1,
       fractional: false,
       maxDurability: -1,
@@ -245,6 +244,29 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
+                  <label className="block text-sm font-semibold mb-1">Icon (Addressable)</label>
+                  <input
+                    type="text"
+                    value={item.icon || ''}
+                    onChange={(e) => onUpdate(item.id, { icon: e.target.value })}
+                    placeholder="icon_key"
+                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">World Prefab (Addressable)</label>
+                  <input
+                    type="text"
+                    value={item.worldPrefab || ''}
+                    onChange={(e) => onUpdate(item.id, { worldPrefab: e.target.value })}
+                    placeholder="prefab_key"
+                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
                   <label className="block text-sm font-semibold mb-1">Type</label>
                   <input
                     type="text"
@@ -254,11 +276,11 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Weight</label>
+                  <label className="block text-sm font-semibold mb-1">Rarity</label>
                   <input
                     type="number"
-                    value={item.weight}
-                    onChange={(e) => onUpdate(item.id, { weight: parseFloat(e.target.value) })}
+                    value={item.rarity || 0}
+                    onChange={(e) => onUpdate(item.id, { rarity: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
                   />
                 </div>
@@ -266,24 +288,72 @@ export default function ItemEditor({ items, onUpdate, onAdd, onDelete, onSave, g
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={item.stackable}
-                      onChange={(e) => onUpdate(item.id, { stackable: e.target.checked })}
-                    />
-                    Stackable
-                  </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-1">Max Stack</label>
+                  <label className="block text-sm font-semibold mb-1">Weight</label>
                   <input
                     type="number"
-                    value={item.maxStack}
-                    onChange={(e) => onUpdate(item.id, { maxStack: parseInt(e.target.value) })}
+                    step="0.1"
+                    value={item.weight}
+                    onChange={(e) => onUpdate(item.id, { weight: parseFloat(e.target.value) })}
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
-                    disabled={!item.stackable}
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Size [W, H]</label>
+                  <input
+                    type="text"
+                    value={JSON.stringify(item.size || [1, 1])}
+                    onChange={(e) => {
+                      try {
+                        const parsed = JSON.parse(e.target.value)
+                        if (Array.isArray(parsed) && parsed.length === 2) {
+                          onUpdate(item.id, { size: parsed })
+                        }
+                      } catch {}
+                    }}
+                    placeholder="[1, 1]"
+                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Max Stack (1 = not stackable)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.maxStack || 1}
+                    onChange={(e) => {
+                      const newMaxStack = Math.max(1, parseInt(e.target.value) || 1)
+                      onUpdate(item.id, { maxStack: newMaxStack })
+                    }}
+                    className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">
+                    {(item.maxStack || 1) > 1 ? 'Fractional (decimal amounts)' : 'Max Durability (-1 = none)'}
+                  </label>
+                  {(item.maxStack || 1) > 1 ? (
+                    <div className="flex items-center h-full">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={item.fractional || false}
+                          onChange={(e) => onUpdate(item.id, { fractional: e.target.checked })}
+                        />
+                        Allow fractional
+                      </label>
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={item.maxDurability ?? -1}
+                      onChange={(e) => onUpdate(item.id, { maxDurability: parseFloat(e.target.value) })}
+                      className="w-full px-3 py-2 bg-slate-700 text-white rounded text-sm"
+                    />
+                  )}
                 </div>
               </div>
 
