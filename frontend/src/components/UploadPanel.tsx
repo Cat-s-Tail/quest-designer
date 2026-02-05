@@ -57,20 +57,20 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       const data = JSON.parse(text)
 
       if (type === 'items' || type === 'containers') {
-        // For items/containers, use new API
-        const endpoint = type === 'items' ? '/api/items/files' : '/api/containers/files'
+        // For items/containers, use upload API with field transformation
+        const endpoint = type === 'items' ? '/api/upload/items' : '/api/upload/containers'
         const filename = file.name
         const payload = type === 'items' 
           ? { filename, items: data }
           : { filename, containers: data }
         
-        await axios.post(`${API_URL}${endpoint}`, payload, {
+        const response = await axios.post(`${API_URL}${endpoint}`, payload, {
           params: { project: currentProject }
         })
         
         setMessage({
           type: 'success',
-          text: `Successfully uploaded ${type} file: ${filename}`
+          text: response.data.message || `Successfully uploaded ${type} file: ${filename}`
         })
       } else {
         // Original logic for NPCs/Missions
@@ -116,18 +116,11 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
       let filename
       
       if (type === 'items' || type === 'containers') {
-        // For items/containers, get all files and merge them
-        const endpoint = type === 'items' ? '/api/items/files' : '/api/containers/files'
-        const filesRes = await axios.get(`${API_URL}${endpoint}`, {
+        // For items/containers, use export API
+        const endpoint = type === 'items' ? '/api/upload/export/items' : '/api/upload/export/containers'
+        response = await axios.get(`${API_URL}${endpoint}`, {
           params: { project: currentProject }
         })
-        
-        const files = filesRes.data.files || []
-        const allData = type === 'items'
-          ? files.flatMap((f: any) => f.items || [])
-          : files.flatMap((f: any) => f.containers || [])
-        
-        response = { data: allData }
         filename = `${type}_${currentProject}.json`
       } else {
         const endpoint = type === 'npcs' ? '/api/upload/export/npcs' : '/api/upload/export/missions'
@@ -169,7 +162,14 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
     setMessage(null)
 
     try {
-      const endpoint = type === 'npcs' ? '/api/upload/export/npcs/zip' : '/api/upload/export/missions/zip'
+      const endpointMap: { [key: string]: string } = {
+        'npcs': '/api/upload/export/npcs/zip',
+        'missions': '/api/upload/export/missions/zip',
+        'items': '/api/upload/export/items/zip',
+        'containers': '/api/upload/export/containers/zip'
+      }
+      
+      const endpoint = endpointMap[type]
       const response = await axios.get(`${API_URL}${endpoint}`, {
         params: { project: currentProject },
         responseType: 'blob'
@@ -438,16 +438,31 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
                 <p className="text-sm text-gray-600 mb-3">
                   Download all items from the database.
                 </p>
-                <button
-                  onClick={() => handleExport('items')}
-                  disabled={uploading || exporting || (stats && stats.items === 0)}
-                  className="w-full py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Export Items JSON
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExport('items')}
+                    disabled={uploading || exporting || (stats && stats.items === 0)}
+                    className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    JSON (All)
+                  </button>
+                  <button
+                    onClick={() => handleExportZip('items')}
+                    disabled={uploading || exporting || (stats && stats.items === 0)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    ZIP (Separate)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  JSON: All items in one file. ZIP: One file per item.
+                </p>
               </div>
             </div>
           )}
@@ -482,16 +497,31 @@ export default function UploadPanel({ onClose }: { onClose: () => void }) {
                 <p className="text-sm text-gray-600 mb-3">
                   Download all containers from the database.
                 </p>
-                <button
-                  onClick={() => handleExport('containers')}
-                  disabled={uploading || exporting || (stats && stats.containers === 0)}
-                  className="w-full py-2 px-4 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Export Containers JSON
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleExport('containers')}
+                    disabled={uploading || exporting || (stats && stats.containers === 0)}
+                    className="flex-1 py-2 px-4 bg-fuchsia-600 text-white rounded-lg hover:bg-fuchsia-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    JSON (All)
+                  </button>
+                  <button
+                    onClick={() => handleExportZip('containers')}
+                    disabled={uploading || exporting || (stats && stats.containers === 0)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    ZIP (Separate)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  JSON: All containers in one file. ZIP: One file per container.
+                </p>
               </div>
             </div>
           )}
